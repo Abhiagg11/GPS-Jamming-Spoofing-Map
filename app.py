@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import json
@@ -127,3 +128,92 @@ if st.button("Run investigation", type="primary", use_container_width=True):
 
 st.divider()
 st.caption("This tool is an investigative aid, not an aviation safety system or an authoritative determination of GNSS jamming/spoofing. Validate findings against original provider data and operational procedures.")
+=======
+from datetime import datetime
+from pathlib import Path
+
+import streamlit as st
+from PIL import Image
+
+from modules.map_view import render_investigation_map
+from modules.screenshot_analysis import analyse_screenshot
+
+st.set_page_config(
+    page_title="GPS Jamming & Spoofing Map",
+    page_icon="🛰️",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
+
+st.title("🛰️ GPS Jamming & Spoofing Map")
+st.caption("Upload a Mission Watch screenshot, review any extracted details, then mark the affected area on the map.")
+
+# Keep the first version deliberately simple: one upload area and one map.
+upload = st.file_uploader(
+    "Upload Mission Watch flight screenshot",
+    type=["png", "jpg", "jpeg", "webp"],
+    help="The image is processed in this app session. Do not upload confidential operational data to a public deployment.",
+)
+
+analysis = None
+if upload is not None:
+    try:
+        image = Image.open(upload).convert("RGB")
+        with st.expander("View uploaded screenshot", expanded=False):
+            st.image(image, use_container_width=True)
+
+        with st.spinner("Reading visible text from the screenshot…"):
+            analysis = analyse_screenshot(image)
+
+        st.subheader("Screenshot reading (check before using)")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Possible flight", analysis.get("flight_id") or "Not detected")
+        c2.metric("Coordinate text", "Detected" if analysis.get("coordinates_text") else "Not detected")
+        c3.metric("OCR", analysis.get("ocr_status", "Not run"))
+
+        if analysis.get("coordinates_text"):
+            st.write(f"**Coordinate text found:** `{analysis['coordinates_text']}`")
+        if analysis.get("text_excerpt"):
+            with st.expander("Review other text extracted from screenshot"):
+                st.text(analysis["text_excerpt"])
+        for note in analysis.get("notes", []):
+            st.caption(f"ℹ️ {note}")
+    except Exception as exc:
+        st.error(f"The screenshot could not be read: {exc}")
+
+st.divider()
+st.subheader("Mark the ADS-B position-loss area")
+st.write(
+    "Use the drawing tools on the map to mark the approximate area where the aircraft position disappeared. "
+    "You can draw a circle, rectangle or polygon, then edit or delete it."
+)
+
+# The supplied example flight is LOS–ABV, so this is a useful starting view only.
+# It is not an automatically detected aircraft position.
+with st.expander("Adjust map starting point", expanded=False):
+    left, right = st.columns(2)
+    with left:
+        map_lat = st.number_input("Map centre latitude", min_value=-90.0, max_value=90.0, value=8.5, step=0.1, format="%.4f")
+    with right:
+        map_lon = st.number_input("Map centre longitude", min_value=-180.0, max_value=180.0, value=5.3, step=0.1, format="%.4f")
+    st.caption("The initial view is centred near the Lagos–Abuja example route. Change it for other flights.")
+
+map_result = render_investigation_map(map_lat, map_lon)
+
+if map_result and map_result.get("geometry"):
+    st.success("Area marked on the map. Review its position and shape before using it in an investigation.")
+    st.download_button(
+        "Download marked area (GeoJSON)",
+        data=__import__("json").dumps(map_result["geometry"], indent=2),
+        file_name="position-loss-area.geojson",
+        mime="application/geo+json",
+    )
+else:
+    st.info("No area marked yet. Use the polygon, rectangle or circle drawing tool on the map.")
+
+st.divider()
+st.caption(
+    "Current MVP: screenshot text extraction and manual area marking only. It does not yet detect an ADS-B gap "
+    "or confirm GPS jamming/spoofing. Those require validated flight-position data and independent interference evidence."
+)
+>>>>>>> 63b90d1 (new changed)
