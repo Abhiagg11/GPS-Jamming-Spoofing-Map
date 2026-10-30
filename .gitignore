@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.streamlit/secrets.toml
+# Do not commit operational screenshots, flight data or investigation exports.
+uploads/
+*.csv
+*.xlsx
+*.xls
+*.png
+*.jpg
+*.jpeg
+*.webp
+!assets/README.md
