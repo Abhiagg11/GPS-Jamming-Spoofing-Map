@@ -1,66 +1,232 @@
 
-import folium
 import streamlit as st
+import folium
+
+from branca.element import MacroElement, Template, Element
 from folium.plugins import Draw, Fullscreen, MousePosition
 from streamlit_folium import st_folium
 
 
+# ---------------------------------------------------------
+# MAP SOURCES
+# ---------------------------------------------------------
+
+WORLD_STREET = (
+    "https://server.arcgisonline.com/ArcGIS/rest/services/"
+    "World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+)
+
+WORLD_IMAGERY = (
+    "https://server.arcgisonline.com/ArcGIS/rest/services/"
+    "World_Imagery/MapServer/tile/{z}/{y}/{x}"
+)
+
+IMAGERY_LABELS = (
+    "https://server.arcgisonline.com/ArcGIS/rest/services/"
+    "Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+)
+
+
+# ---------------------------------------------------------
+# AUTOMATIC BASEMAP SWITCH
+# ---------------------------------------------------------
+
+class BasemapSwitcher(MacroElement):
+
+    def __init__(self, street, imagery, labels, switch_zoom=5):
+        super().__init__()
+
+        self.street = street.get_name()
+        self.imagery = imagery.get_name()
+        self.labels = labels.get_name()
+        self.switch_zoom = switch_zoom
+
+        self._template = Template("""
+        {% macro script(this, kwargs) %}
+
+        var map = {{ this._parent.get_name() }};
+
+        var street = {{ this.street }};
+        var imagery = {{ this.imagery }};
+        var labels = {{ this.labels }};
+
+        function updateBasemap() {
+
+            var detailed = map.getZoom() >= {{ this.switch_zoom }};
+
+            if (detailed) {
+
+                if (map.hasLayer(street)) {
+                    map.removeLayer(street);
+                }
+
+                if (!map.hasLayer(imagery)) {
+                    map.addLayer(imagery);
+                }
+
+                if (!map.hasLayer(labels)) {
+                    map.addLayer(labels);
+                }
+
+            } else {
+
+                if (map.hasLayer(imagery)) {
+                    map.removeLayer(imagery);
+                }
+
+                if (map.hasLayer(labels)) {
+                    map.removeLayer(labels);
+                }
+
+                if (!map.hasLayer(street)) {
+                    map.addLayer(street);
+                }
+            }
+        }
+
+        map.whenReady(updateBasemap);
+        map.on("zoomend", updateBasemap);
+
+        {% endmacro %}
+        """)
+
+
+# ---------------------------------------------------------
+# MAIN MAP FUNCTION
+# ---------------------------------------------------------
+
 def render_investigation_map(latitude=9.0, longitude=7.0):
 
-    # Create map centred around the investigation area
+    # Validate coordinates
+    try:
+        latitude = float(latitude)
+        longitude = float(longitude)
+
+        if not -90 <= latitude <= 90:
+            latitude = 9.0
+
+        if not -180 <= longitude <= 180:
+            longitude = 7.0
+
+    except (TypeError, ValueError):
+        latitude = 9.0
+        longitude = 7.0
+
+    # Create map
     m = folium.Map(
-        location=[latitude, longitude],
-        zoom_start=6,
-        min_zoom=3,
-        max_zoom=18,
-        control_scale=True,
+        location=[15, 0],
+        zoom_start=2.7,
+        min_zoom=2.7,
+        max_zoom=19,
+        zoom_snap=0.1,
         tiles=None,
+        control_scale=True,
         prefer_canvas=True,
     )
 
-    # Street map
-    folium.TileLayer(
-        tiles="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-        attr="© OpenStreetMap contributors © CARTO",
-        name="Street Map",
-        subdomains=["a", "b", "c", "d"],
-        max_zoom=20,
-        no_wrap=True,
+    # Map styling
+    css = """
+    <style>
+    .leaflet-container {
+        background: #dce8ed !important;
+        font-family: Arial, sans-serif;
+    }
+
+    .leaflet-control {
+        border-radius: 7px !important;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2) !important;
+    }
+
+    .leaflet-control-mouseposition {
+        background: rgba(255,255,255,0.95);
+        padding: 5px 9px;
+        border-radius: 5px;
+        font-size: 12px;
+        color: #263746;
+    }
+    </style>
+    """
+
+    m.get_root().header.add_child(Element(css))
+
+    # -----------------------------------------------------
+    # GLOBAL STREET MAP
+    # -----------------------------------------------------
+
+    street = folium.TileLayer(
+        tiles=WORLD_STREET,
+        attr="© Esri, HERE, Garmin, USGS and contributors",
+        name="Global Street Map",
         overlay=False,
         control=True,
+        show=True,
+        min_zoom=2,
+        max_zoom=19,
+        no_wrap=False,
     ).add_to(m)
 
-    # Satellite imagery
-    folium.TileLayer(
-        tiles=(
-            "https://server.arcgisonline.com/ArcGIS/rest/services/"
-            "World_Imagery/MapServer/tile/{z}/{y}/{x}"
-        ),
-        attr="Tiles © Esri",
-        name="Satellite View",
+    # -----------------------------------------------------
+    # SATELLITE IMAGERY
+    # -----------------------------------------------------
+
+    imagery = folium.TileLayer(
+        tiles=WORLD_IMAGERY,
+        attr="Imagery © Esri, Maxar, Earthstar Geographics",
+        name="Satellite Imagery",
+        overlay=False,
+        control=True,
+        show=False,
+        min_zoom=2,
         max_zoom=19,
         no_wrap=True,
-        overlay=False,
+    ).add_to(m)
+
+    # -----------------------------------------------------
+    # PLACE NAMES AND BOUNDARIES
+    # -----------------------------------------------------
+
+    labels = folium.TileLayer(
+        tiles=IMAGERY_LABELS,
+        attr="Labels © Esri and contributors",
+        name="Place Names & Boundaries",
+        overlay=True,
         control=True,
+        show=False,
+        opacity=1.0,
+        max_zoom=19,
+        no_wrap=True,
     ).add_to(m)
 
-    # Investigation centre marker
-    folium.Marker(
+    # -----------------------------------------------------
+    # INVESTIGATION MARKER
+    # -----------------------------------------------------
+
+    folium.CircleMarker(
         location=[latitude, longitude],
-        tooltip="Investigation area",
-        popup=(
-            f"Latitude: {latitude:.5f}<br>"
-            f"Longitude: {longitude:.5f}"
-        ),
-        icon=folium.Icon(
-            color="blue",
-            icon="info-sign",
+        radius=8,
+        color="white",
+        weight=3,
+        fill=True,
+        fill_color="#1677d2",
+        fill_opacity=1,
+        tooltip="Investigation Centre",
+        popup=folium.Popup(
+            f"""
+            <b>Investigation Centre</b><br>
+            Latitude: {latitude:.5f}<br>
+            Longitude: {longitude:.5f}
+            """,
+            max_width=250,
         ),
     ).add_to(m)
 
-    # Drawing tools
+    # -----------------------------------------------------
+    # DRAWING TOOLS
+    # -----------------------------------------------------
+
     Draw(
         export=False,
+        position="topleft",
         draw_options={
             "polyline": False,
             "marker": True,
@@ -75,29 +241,47 @@ def render_investigation_map(latitude=9.0, longitude=7.0):
         },
     ).add_to(m)
 
-    # Fullscreen
-    Fullscreen(
-        position="topright",
-    ).add_to(m)
+    # -----------------------------------------------------
+    # MAP CONTROLS
+    # -----------------------------------------------------
 
-    # Coordinates
+    Fullscreen(position="topright").add_to(m)
+
     MousePosition(
         position="bottomleft",
         separator=" | ",
-        prefix="Lat/Lon:",
+        prefix="Coordinates:",
         num_digits=5,
     ).add_to(m)
 
-    # Map layer selector
+    # Manual layer selector
     folium.LayerControl(
         position="topright",
         collapsed=True,
     ).add_to(m)
 
-    # Render map
+    # Automatic switching
+    m.add_child(
+        BasemapSwitcher(
+            street=street,
+            imagery=imagery,
+            labels=labels,
+            switch_zoom=5,
+        )
+    )
+
+    # -----------------------------------------------------
+    # DISPLAY
+    # -----------------------------------------------------
+
+    st.caption(
+        "GLOBAL MAP  |  SATELLITE IMAGERY AT REGIONAL ZOOM  |  "
+        "DRAW TO SELECT AN INVESTIGATION AREA"
+    )
+
     result = st_folium(
         m,
-        height=650,
+        height=680,
         use_container_width=True,
         returned_objects=[
             "last_active_drawing",
@@ -106,7 +290,10 @@ def render_investigation_map(latitude=9.0, longitude=7.0):
         key="position_loss_map",
     )
 
-    # Capture manually selected area
+    # -----------------------------------------------------
+    # RETURN DRAWN GEOMETRY
+    # -----------------------------------------------------
+
     drawing = None
 
     if result:
@@ -114,7 +301,6 @@ def render_investigation_map(latitude=9.0, longitude=7.0):
 
         if not drawing:
             drawings = result.get("all_drawings") or []
-
             if drawings:
                 drawing = drawings[-1]
 
