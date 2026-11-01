@@ -1,28 +1,32 @@
-import json
-from io import BytesIO
 
+import json
 import streamlit as st
-from PIL import Image
+import pandas as pd
 
 from modules.map_view import render_investigation_map
-from modules.screenshot_analysis import analyse_screenshot
+from modules.airport_lookup import search_airport
+from modules.adsb_provider import (
+    search_by_route,
+    search_by_callsign,
+    get_flight_track,
+    detect_position_gaps,
+    ADSBProviderError,
+)
 
-
-# =========================================================
+# ---------------------------------------------------------
 # PAGE CONFIGURATION
-# =========================================================
+# ---------------------------------------------------------
 
 st.set_page_config(
     page_title="GNSS Interference Investigator",
     page_icon="🛰️",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
-
-# =========================================================
-# PAGE STYLING
-# =========================================================
+# ---------------------------------------------------------
+# CUSTOM STYLING
+# ---------------------------------------------------------
 
 st.markdown(
     """
@@ -33,275 +37,523 @@ st.markdown(
 
         .block-container {
             max-width: 100%;
-            padding: 1.2rem 2.2rem 2rem 2.2rem;
+            padding: 2rem 0.9rem 0.4rem 0.9rem !important;
+        }
+
+        [data-testid="stSidebar"] {
+            background-color: #111c2a;
+            border-right: 1px solid #26384c;
+            min-width: 255px;
+            max-width: 255px;
+        }
+
+        [data-testid="stSidebar"] .block-container {
+            padding: 0.8rem 0.8rem;
         }
 
         .main-header {
-            padding: 10px 0 18px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             border-bottom: 1px solid #26384c;
-            margin-bottom: 22px;
-        }
-
-        .header-kicker {
-            color: #60c5e8;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 2px;
-            margin-bottom: 7px;
-        }
-
-        .section-label {
-            color: #e8eef6;
-            font-size: 17px;
-            font-weight: 650;
-            margin-bottom: 5px;
-        }
-
-        .section-hint {
-            color: #91a4b9;
-            font-size: 12px;
+            padding-bottom: 10px;
             margin-bottom: 12px;
         }
 
-        .footer-note {
+        .main-header h1 {
+            color: #f1f5f9;
+            font-size: 21px;
+            margin: 0;
+        }
+
+        .subtitle {
+            color: #91a4b9;
+            font-size: 12px;
+            margin-top: 3px;
+        }
+
+        .sidebar-heading {
+            color: #f1f5f9;
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 3px;
+        }
+
+        .sidebar-hint {
+            color: #91a4b9;
+            font-size: 12px;
+            margin-bottom: 15px;
+        }
+
+        .map-caption {
             color: #91a4b9;
             font-size: 11px;
-            border-top: 1px solid #26384c;
-            padding-top: 14px;
-            margin-top: 25px;
+            padding-top: 5px;
         }
 
-        div[data-testid="stFileUploader"] {
-            background: #162438;
-            border: 1px dashed #42617e;
-            border-radius: 10px;
-            padding: 12px;
-        }
-
-        div[data-testid="stAlert"] {
-            border-radius: 9px;
-        }
-
-        div[data-testid="stMetric"] {
-            background: #141f2d;
+        div[data-testid="stForm"] {
+            background: #172333;
             border: 1px solid #26384c;
             border-radius: 9px;
             padding: 12px;
         }
 
+        div[data-testid="stTextInput"] input,
+        div[data-testid="stDateInput"] input {
+            min-height: 2.4rem;
+        }
+
+        div[data-testid="stVerticalBlock"] > div {
+            gap: 0.38rem;
+        }
+
+        .map-frame {
+            background: #111c2a;
+            border: 1px solid #26384c;
+            border-radius: 10px;
+            padding: 8px;
+        }
+
+        div[data-testid="stAlert"] {
+            padding: 0.65rem 0.9rem;
+        }
+
         hr {
             border-color: #26384c;
+        }
+
+        footer {
+            visibility: hidden;
         }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
+# ---------------------------------------------------------
+# CACHED ADS-B PROVIDER CALLS
+# ---------------------------------------------------------
 
-# =========================================================
-# HEADER
-# =========================================================
+@st.cache_data(ttl=900, show_spinner=False)
+def cached_route_search(departure, destination, flight_date):
+    return search_by_route(departure, destination, flight_date)
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def cached_callsign_search(callsign, flight_date):
+    return search_by_callsign(callsign, flight_date)
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def cached_flight_track(flight_id):
+    return get_flight_track(flight_id)
+
+
+# ---------------------------------------------------------
+# SESSION STATE
+# ---------------------------------------------------------
+
+if "flight_search" not in st.session_state:
+    st.session_state.flight_search = None
+
+if "search_message" not in st.session_state:
+    st.session_state.search_message = None
+
+if "search_error" not in st.session_state:
+    st.session_state.search_error = None
+
+if "selected_flight_id" not in st.session_state:
+    st.session_state.selected_flight_id = None
+
+
+# ---------------------------------------------------------
+# SIDEBAR — FLIGHT SEARCH
+# ---------------------------------------------------------
+
+with st.sidebar:
+
+    st.markdown(
+        '<div class="sidebar-heading">🔎 Flight Search</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        '<div class="sidebar-hint">'
+        'Find a historical flight to investigate (latest 7 calendar days).'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    search_method = st.radio(
+        "Search method",
+        ["By Route", "By Flight Number"],
+        key="search_method",
+    )
+
+    st.divider()
+
+    # SEARCH BY ROUTE
+
+    if search_method == "By Route":
+
+        with st.form("route_search_form"):
+
+            st.markdown("**Airport Details**")
+
+            departure = st.text_input(
+                "Departure Airport",
+                placeholder="DEL",
+                max_chars=4,
+            )
+
+            destination = st.text_input(
+                "Destination Airport",
+                placeholder="LHR",
+                max_chars=4,
+            )
+
+            route_date = st.date_input(
+                "Flight Date",
+                key="route_flight_date",
+            )
+
+            route_submit = st.form_submit_button(
+                "Search Flights",
+                use_container_width=True,
+                type="primary",
+            )
+
+        if route_submit:
+
+            dep = departure.strip().upper()
+            dest = destination.strip().upper()
+
+            st.session_state.search_error = None
+            st.session_state.search_message = None
+            st.session_state.flight_search = None
+            st.session_state.selected_flight_id = None
+
+            if not dep or not dest:
+                st.session_state.search_error = (
+                    "Enter both departure and destination airport codes."
+                )
+
+            elif dep == dest:
+                st.session_state.search_error = (
+                    "Departure and destination cannot be the same."
+                )
+
+            elif search_airport(dep).empty:
+                st.session_state.search_error = (
+                    f"Departure airport '{dep}' was not found."
+                )
+
+            elif search_airport(dest).empty:
+                st.session_state.search_error = (
+                    f"Destination airport '{dest}' was not found."
+                )
+
+            else:
+                try:
+                    with st.spinner("Searching historical ADS-B records..."):
+
+                        flights = cached_route_search(
+                            dep,
+                            dest,
+                            route_date.isoformat(),
+                        )
+
+                    # Keep airport coordinates even when ADS-B returns no flights.
+                    dep_airport = search_airport(dep).iloc[0]
+                    dest_airport = search_airport(dest).iloc[0]
+
+                    estimated_route_points = [
+                        {
+                            "name": f"{dep} — {dep_airport['name']}",
+                            "latitude": float(dep_airport["latitude_deg"]),
+                            "longitude": float(dep_airport["longitude_deg"]),
+                        },
+                        {
+                            "name": f"{dest} — {dest_airport['name']}",
+                            "latitude": float(dest_airport["latitude_deg"]),
+                            "longitude": float(dest_airport["longitude_deg"]),
+                        },
+                    ]
+
+                    st.session_state.flight_search = {
+                        "search_type": "route",
+                        "departure": dep,
+                        "destination": dest,
+                        "date": route_date.isoformat(),
+                        "flights": flights,
+                        "estimated_route_points": estimated_route_points,
+                    }
+
+                    st.session_state.search_message = (
+                        f"{dep} → {dest} | {route_date.isoformat()} | "
+                        f"{len(flights)} matching record(s)"
+                    )
+
+                except (ADSBProviderError, ValueError) as exc:
+                    st.session_state.search_error = str(exc)
+
+                except Exception as exc:
+                    st.session_state.search_error = (
+                        f"Flight search failed: {exc}"
+                    )
+
+    # SEARCH BY FLIGHT NUMBER
+
+    else:
+
+        with st.form("flight_number_search_form"):
+
+            st.markdown("**Flight Details**")
+
+            flight_number = st.text_input(
+                "Flight Number / Callsign",
+                placeholder="BAW395",
+            )
+
+            flight_date = st.date_input(
+                "Flight Date",
+                key="flight_number_date",
+            )
+
+            flight_submit = st.form_submit_button(
+                "Search Flight",
+                use_container_width=True,
+                type="primary",
+            )
+
+        if flight_submit:
+
+            callsign = flight_number.strip().upper()
+
+            st.session_state.search_error = None
+            st.session_state.search_message = None
+            st.session_state.flight_search = None
+            st.session_state.selected_flight_id = None
+
+            if not callsign:
+                st.session_state.search_error = (
+                    "Enter a flight number or callsign."
+                )
+
+            else:
+                try:
+                    with st.spinner("Searching historical ADS-B records..."):
+
+                        flights = cached_callsign_search(
+                            callsign,
+                            flight_date.isoformat(),
+                        )
+
+                    st.session_state.flight_search = {
+                        "search_type": "flight_number",
+                        "flight_number": callsign,
+                        "date": flight_date.isoformat(),
+                        "flights": flights,
+                    }
+
+                    st.session_state.search_message = (
+                        f"{callsign} | {flight_date.isoformat()} | "
+                        f"{len(flights)} matching record(s)"
+                    )
+
+                except (ADSBProviderError, ValueError) as exc:
+                    st.session_state.search_error = str(exc)
+
+                except Exception as exc:
+                    st.session_state.search_error = (
+                        f"Flight search failed: {exc}"
+                    )
+
+    # SEARCH FEEDBACK
+
+    if st.session_state.search_error:
+        st.error(st.session_state.search_error)
+
+    if st.session_state.search_message:
+        st.success(st.session_state.search_message)
+
+
+# ---------------------------------------------------------
+# MAIN HEADER
+# ---------------------------------------------------------
 
 st.markdown(
     """
     <div class="main-header">
-        <div class="header-kicker">
-            FLIGHT SURVEILLANCE AND GNSS ANALYSIS
+        <div>
+            <h1>🛰️ GNSS Interference Investigator</h1>
+            <div class="subtitle">
+                Historical flight routes · ADS-B position gaps ·
+                Potential GNSS interference
+            </div>
         </div>
-        <h1 style="margin:0; color:#f1f5f9;">
-            🛰️ GNSS Interference Investigator
-        </h1>
-        <p style="color:#a8bacb; margin-top:8px; font-size:13px;">
-            Investigate ADS-B position loss, identify affected geographical
-            areas and examine potential GNSS interference evidence.
-        </p>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
 
-# =========================================================
-# DEFAULT MAP CENTRE
-# =========================================================
+# ---------------------------------------------------------
+# FLIGHT SEARCH RESULTS
+# ---------------------------------------------------------
 
-# These coordinates only control the initial map view.
-# They are not extracted aircraft positions.
+search = st.session_state.flight_search
 
-map_lat = 8.5
-map_lon = 5.3
+selected_flight = None
+track = pd.DataFrame()
+gaps = pd.DataFrame()
+flight_metadata = None
+
+if search:
+
+    flights = search.get("flights", [])
+
+    if not flights:
+
+        st.warning(
+            "No matching ADS-B records were returned. The map will show "
+            "an estimated airport-to-airport connection, not an actual flight path."
+        )
+
+    else:
+
+        def flight_label(flight):
+
+            callsign = flight.get("callsign") or "Unknown callsign"
+            origin = flight.get("start_airport_ident") or "Unknown origin"
+            destination = flight.get("end_airport_ident") or "Unknown destination"
+            start = flight.get("start_ts") or "Time unavailable"
+
+            return (
+                f"{callsign} | {origin} → {destination} | {start}"
+            )
+
+        options = {
+            flight.get("flight_id"): flight
+            for flight in flights
+            if flight.get("flight_id")
+        }
+
+        if options:
+
+            labels = {
+                flight_label(f): fid
+                for fid, flight in options.items()
+            }
+
+            label_list = list(labels.keys())
+
+            current_id = st.session_state.selected_flight_id
+            default_index = 0
+
+            if current_id in options:
+
+                for idx, label in enumerate(label_list):
+
+                    if labels[label] == current_id:
+                        default_index = idx
+                        break
+
+            selected_label = st.selectbox(
+                "Select the matching historical flight",
+                label_list,
+                index=default_index,
+                key=(
+                    f"flight_choice_{search['date']}_"
+                    f"{search.get('flight_number', search.get('departure', 'route'))}"
+                ),
+            )
+
+            selected_id = labels[selected_label]
+
+            st.session_state.selected_flight_id = selected_id
+            selected_flight = options[selected_id]
+
+            try:
+
+                with st.spinner("Retrieving historical aircraft positions..."):
+
+                    flight_metadata, track = cached_flight_track(
+                        selected_id
+                    )
+
+                gaps = detect_position_gaps(
+                    track,
+                    threshold_seconds=60,
+                )
+
+            except Exception as exc:
+
+                st.error(
+                    f"Could not retrieve this flight track: {exc}"
+                )
+
+                track = pd.DataFrame()
+                gaps = pd.DataFrame()
+
+            if not track.empty:
+
+                st.caption(
+                    f"{len(track)} ADS-B positions · "
+                    f"{len(gaps)} observation gaps (>60 sec) · "
+                    "Gaps do not confirm GNSS interference."
+                )
+
+            else:
+
+                st.warning(
+                    "The selected flight record has no usable historical track points."
+                )
 
 
-# =========================================================
-# 01 — SCREENSHOT UPLOAD
-# =========================================================
+# ---------------------------------------------------------
+# INVESTIGATION MAP
+# ---------------------------------------------------------
 
-st.markdown(
-    '<div class="section-label">01 — Upload Flight Screenshot</div>',
-    unsafe_allow_html=True,
-)
+st.markdown("### Investigation Map")
 
-st.markdown(
-    '<div class="section-hint">'
-    'Upload a Mission Watch screenshot to extract visible flight details.'
-    '</div>',
-    unsafe_allow_html=True,
-)
+map_lat, map_lon = 8.5, 5.3
+map_result = None
 
-upload = st.file_uploader(
-    "Upload Mission Watch screenshot",
-    type=["png", "jpg", "jpeg", "webp"],
-    help=(
-        "Supported formats: PNG, JPG, JPEG and WEBP. "
-        "Avoid uploading confidential operational data "
-        "to a public deployment."
-    ),
-)
-
-
-# =========================================================
-# 02 — SCREENSHOT ANALYSIS
-# =========================================================
-
-if upload is not None:
+with st.container(border=True):
 
     try:
-        image = Image.open(
-            BytesIO(upload.getvalue())
-        ).convert("RGB")
 
-        with st.expander(
-            "Preview uploaded screenshot",
-            expanded=False,
-        ):
-            st.image(
-                image,
-                use_container_width=True,
-            )
-
-        with st.spinner("Analysing flight screenshot..."):
-
-            analysis = analyse_screenshot(image)
-
-        if not isinstance(analysis, dict):
-            raise ValueError(
-                "Screenshot analysis returned an unexpected result."
-            )
-
-        flight_id = (
-            analysis.get("flight_id") or "Not detected"
+        estimated_route_points = (
+            search.get("estimated_route_points", [])
+            if search and search.get("search_type") == "route"
+            else []
         )
 
-        coordinates_text = analysis.get("coordinates_text")
+        if estimated_route_points and track.empty:
+            map_lat = sum(p["latitude"] for p in estimated_route_points) / 2
+            map_lon = sum(p["longitude"] for p in estimated_route_points) / 2
 
-        ocr_status = (
-            analysis.get("ocr_status") or "Completed"
+        map_result = render_investigation_map(
+            map_lat,
+            map_lon,
+            flight_route_points=estimated_route_points,
+            flight_track=track,
+            position_gaps=gaps,
         )
-
-        st.markdown(
-            '<div class="section-label">02 — Screenshot Analysis</div>',
-            unsafe_allow_html=True,
-        )
-
-        st.markdown(
-            '<div class="section-hint">'
-            'Review the information extracted from the screenshot. '
-            'Verify all details before using them.'
-            '</div>',
-            unsafe_allow_html=True,
-        )
-
-        col1, col2, col3 = st.columns(3)
-
-        col1.metric(
-            "Possible Flight",
-            flight_id,
-        )
-
-        col2.metric(
-            "Coordinates",
-            "Detected" if coordinates_text else "Not detected",
-        )
-
-        col3.metric(
-            "OCR Status",
-            ocr_status,
-        )
-
-        if coordinates_text:
-
-            st.markdown("**Coordinate text identified**")
-
-            st.code(coordinates_text)
-
-        text_excerpt = analysis.get("text_excerpt")
-
-        if text_excerpt:
-
-            with st.expander("View extracted screenshot text"):
-
-                st.text(text_excerpt)
-
-        for note in analysis.get("notes", []):
-
-            st.caption(f"ℹ️ {note}")
 
     except Exception as exc:
 
         st.error(
-            f"Screenshot analysis failed: {exc}"
+            f"The investigation map could not be loaded: {exc}"
         )
 
 
-# =========================================================
-# 03 — FLIGHT INVESTIGATION MAP
-# =========================================================
-
-st.divider()
-
-st.markdown(
-    '<div class="section-label">03 — Flight Investigation Map</div>',
-    unsafe_allow_html=True,
-)
-
-st.markdown(
-    '<div class="section-hint">'
-    'Explore the global map, switch between light and dark map styles, '
-    'and mark the approximate area where aircraft position was lost.'
-    '</div>',
-    unsafe_allow_html=True,
-)
-
-
-# =========================================================
-# 04 — FULL WIDTH INTERACTIVE MAP
-# =========================================================
-
-map_result = None
-
-try:
-
-    map_result = render_investigation_map(
-        map_lat,
-        map_lon,
-    )
-
-except Exception as exc:
-
-    st.error(
-        f"The investigation map could not be loaded: {exc}"
-    )
-
-
-# =========================================================
-# 05 — INVESTIGATION AREA OUTPUT
-# =========================================================
+# ---------------------------------------------------------
+# GEOJSON DOWNLOAD
+# ---------------------------------------------------------
 
 if isinstance(map_result, dict) and map_result.get("geometry"):
-
-    st.success(
-        "Investigation area marked successfully."
-    )
 
     st.download_button(
         label="⬇ Download Investigation Area (GeoJSON)",
@@ -309,31 +561,64 @@ if isinstance(map_result, dict) and map_result.get("geometry"):
             map_result["geometry"],
             indent=2,
         ),
-        file_name="position-loss-area.geojson",
+        file_name="investigation-area.geojson",
         mime="application/geo+json",
     )
 
-elif map_result is not None:
 
-    st.info(
-        "No investigation area selected. "
-        "Use the circle, rectangle or polygon tools on the map."
-    )
+# ---------------------------------------------------------
+# COLLAPSED FLIGHT DETAILS
+# ---------------------------------------------------------
+
+if not track.empty:
+
+    with st.expander(
+        "Flight data and detected gaps",
+        expanded=False,
+    ):
+
+        col1, col2, col3 = st.columns(3)
+
+        col1.metric("ADS-B positions", len(track))
+        col2.metric("Gaps over 60 sec", len(gaps))
+
+        col3.metric(
+            "Callsign",
+            str(
+                (flight_metadata or {}).get("callsign") or "Unknown"
+            ),
+        )
+
+        if gaps.empty:
+
+            st.write(
+                "No gaps above 60 seconds were detected."
+            )
+
+        else:
+
+            display_gaps = gaps.copy()
+
+            for col in ["previous_timestamp", "timestamp"]:
+                display_gaps[col] = display_gaps[col].astype(str)
+
+            st.dataframe(
+                display_gaps,
+                use_container_width=True,
+                hide_index=True,
+            )
 
 
-# =========================================================
+# ---------------------------------------------------------
 # FOOTER
-# =========================================================
+# ---------------------------------------------------------
 
 st.markdown(
     """
-    <div class="footer-note">
-        <b>Investigation limitations:</b>
-        This MVP currently supports screenshot text extraction and
-        manual geographical area marking. It does not independently
-        detect ADS-B position gaps or confirm GPS jamming or spoofing.
-        Reliable assessment requires validated flight-position data,
-        timestamps and independent GNSS interference evidence.
+    <div class="map-caption">
+        Data source: ADS-B historical provider. Track geometry represents
+        received ADS-B positions; lines are not interpolated across detected
+        observation gaps. ADS-B gaps are not proof of GNSS interference.
     </div>
     """,
     unsafe_allow_html=True,
