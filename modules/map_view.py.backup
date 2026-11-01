@@ -916,14 +916,22 @@ def render_investigation_map(
     if displayed_jamming:
         stanford_jamming_layer = folium.FeatureGroup(
             name=f"Stanford Navigation-Quality Cells ({len(displayed_jamming):,})",
-            show=False,
+            show=True,
         )
 
         for cell in displayed_jamming:
             low_count = int(cell.get("low_quality_count", 0) or 0)
             total_count = int(cell.get("total_aircraft_count", 0) or 0)
             percentage = 100 * low_count / total_count if total_count else 0
-            colour = "#DC2626" if percentage >= 50 else "#F97316"
+            if percentage >= 47.4:
+                colour = "#DC2626"
+                intensity = "High"
+            elif percentage >= 17.5:
+                colour = "#F97316"
+                intensity = "Medium"
+            else:
+                colour = "#FACC15"
+                intensity = "Low"
             date_text = escape(str(cell.get("date", "Unknown")))
             cell_id = escape(str(cell.get("cell_id", "Unknown")))
 
@@ -935,21 +943,38 @@ def render_investigation_map(
                 fill=True,
                 fill_color=colour,
                 fill_opacity=0.35,
-                tooltip=f"Stanford navigation-quality observations: {low_count}/{total_count} ({percentage:.1f}%)",
+                tooltip=(
+                    f"{intensity} intensity | {low_count}/{total_count} observations "
+                    f"({percentage:.1f}%)"
+                ),
                 popup=folium.Popup(
                     "<b>Stanford GPS Lab — Daily Navigation-Quality Cell</b><br>"
                     f"Date (UTC): {date_text}<br>"
                     f"H3 cell: {cell_id}<br>"
                     f"Low-quality observations: {low_count}<br>"
                     f"Total aircraft observations: {total_count}<br>"
-                    f"Low-quality share: {percentage:.1f}%<br><br>"
-                    "<i>These are navigation-quality observations, not measured RF strength "
+                    f"Low-quality share: {percentage:.1f}%<br>"
+                    f"Relative category: {intensity}<br><br>"
+                    "<i>Percentile-based visual category; not measured RF strength "
                     "or confirmed jamming coverage.</i>",
                     max_width=340,
                 ),
             ).add_to(stanford_jamming_layer)
 
         stanford_jamming_layer.add_to(m)
+
+        legend_html = """
+        <div style="position:fixed; bottom:35px; left:15px; z-index:9999;
+                    background:white; padding:10px 14px; border:1px solid #999;
+                    border-radius:6px; color:#222; font-size:12px;
+                    box-shadow:0 1px 5px rgba(0,0,0,0.3);">
+            <b>Navigation-Quality Observations</b><br>
+            <span style="color:#FACC15;">&#9632;</span> Low: &lt; 17.5%<br>
+            <span style="color:#F97316;">&#9632;</span> Medium: 17.5–47.3%<br>
+            <span style="color:#DC2626;">&#9632;</span> High: ≥ 47.4%
+        </div>
+        """
+        m.get_root().html.add_child(folium.Element(legend_html))
 
     # Stanford spoofing H3 cells are kept separate from jamming cells.
     if stanford_spoofing_cells:
@@ -1096,7 +1121,7 @@ def render_investigation_map(
 
     result = st_folium(
         m,
-        height=520,
+        height=760,
         use_container_width=True,
         returned_objects=[
             "last_active_drawing",

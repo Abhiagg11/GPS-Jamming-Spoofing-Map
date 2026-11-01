@@ -19,7 +19,7 @@ st.set_page_config(
     page_title="GNSS Interference Investigator",
     page_icon="🛰️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 # ---------------------------------------------------------
@@ -32,16 +32,7 @@ st.markdown(
         .stApp { background-color: #0b111b; }
         .block-container {
             max-width: 100%;
-            padding: 2rem 0.9rem 0.4rem 0.9rem !important;
-        }
-        [data-testid="stSidebar"] {
-            background-color: #111c2a;
-            border-right: 1px solid #26384c;
-            min-width: 255px;
-            max-width: 255px;
-        }
-        [data-testid="stSidebar"] .block-container {
-            padding: 0.8rem 0.8rem;
+            padding: 0.75rem 0.75rem 0.25rem 0.75rem !important;
         }
         .main-header {
             display: flex;
@@ -152,7 +143,7 @@ if "selected_flight_id" not in st.session_state:
 # SIDEBAR — FLIGHT SEARCH
 # ---------------------------------------------------------
 
-with st.sidebar:
+with st.expander("✈️ Flight Investigation — Search", expanded=False):
 
     st.markdown(
         '<div class="sidebar-heading">🔎 Flight Search</div>',
@@ -374,119 +365,121 @@ st.markdown(
 
 
 # ---------------------------------------------------------
-# FLIGHT SEARCH RESULTS
-# ---------------------------------------------------------
+# FLIGHT SEARCH RESULTS — COLLAPSIBLE
 
-search = st.session_state.flight_search
+with st.expander("✈️ Flight Results", expanded=bool(st.session_state.flight_search)):
+    search = st.session_state.flight_search
 
-selected_flight = None
-track = pd.DataFrame()
-gaps = pd.DataFrame()
-flight_metadata = None
+    selected_flight = None
+    track = pd.DataFrame()
+    gaps = pd.DataFrame()
+    flight_metadata = None
 
-if search:
+    if search:
 
-    flights = search.get("flights", [])
+        flights = search.get("flights", [])
 
-    if not flights:
+        if not flights:
 
-        st.warning(
-            "No matching ADS-B records were returned. The map will show "
-            "an estimated airport-to-airport connection, not an actual flight path."
-        )
-
-    else:
-
-        def flight_label(flight):
-
-            callsign = flight.get("callsign") or "Unknown callsign"
-            origin = flight.get("start_airport_ident") or "Unknown origin"
-            destination = flight.get("end_airport_ident") or "Unknown destination"
-            start = flight.get("start_ts") or "Time unavailable"
-
-            return (
-                f"{callsign} | {origin} → {destination} | {start}"
+            st.warning(
+                "No matching ADS-B records were returned. The map will show "
+                "an estimated airport-to-airport connection, not an actual flight path."
             )
 
-        options = {
-            flight.get("flight_id"): flight
-            for flight in flights
-            if flight.get("flight_id")
-        }
+        else:
 
-        if options:
+            def flight_label(flight):
 
-            labels = {
-                flight_label(flight): fid
-                for fid, flight in options.items()
+                callsign = flight.get("callsign") or "Unknown callsign"
+                origin = flight.get("start_airport_ident") or "Unknown origin"
+                destination = flight.get("end_airport_ident") or "Unknown destination"
+                start = flight.get("start_ts") or "Time unavailable"
+
+                return (
+                    f"{callsign} | {origin} → {destination} | {start}"
+                )
+
+            options = {
+                flight.get("flight_id"): flight
+                for flight in flights
+                if flight.get("flight_id")
             }
 
-            label_list = list(labels.keys())
+            if options:
 
-            current_id = st.session_state.selected_flight_id
-            default_index = 0
+                labels = {
+                    flight_label(flight): fid
+                    for fid, flight in options.items()
+                }
 
-            if current_id in options:
+                label_list = list(labels.keys())
 
-                for idx, label in enumerate(label_list):
+                current_id = st.session_state.selected_flight_id
+                default_index = 0
 
-                    if labels[label] == current_id:
-                        default_index = idx
-                        break
+                if current_id in options:
 
-            selected_label = st.selectbox(
-                "Select the matching historical flight",
-                label_list,
-                index=default_index,
-                key=(
-                    f"flight_choice_{search['date']}_"
-                    f"{search.get('flight_number', search.get('departure', 'route'))}"
-                ),
-            )
+                    for idx, label in enumerate(label_list):
 
-            selected_id = labels[selected_label]
+                        if labels[label] == current_id:
+                            default_index = idx
+                            break
 
-            st.session_state.selected_flight_id = selected_id
-            selected_flight = options[selected_id]
+                selected_label = st.selectbox(
+                    "Select the matching historical flight",
+                    label_list,
+                    index=default_index,
+                    key=(
+                        f"flight_choice_{search['date']}_"
+                        f"{search.get('flight_number', search.get('departure', 'route'))}"
+                    ),
+                )
 
-            try:
+                selected_id = labels[selected_label]
 
-                with st.spinner("Retrieving historical aircraft positions..."):
+                st.session_state.selected_flight_id = selected_id
+                selected_flight = options[selected_id]
 
-                    flight_metadata, track = cached_flight_track(
-                        selected_id
+                try:
+
+                    with st.spinner("Retrieving historical aircraft positions..."):
+
+                        flight_metadata, track = cached_flight_track(
+                            selected_id
+                        )
+
+                    gaps = detect_position_gaps(
+                        track,
+                        threshold_seconds=60,
                     )
 
-                gaps = detect_position_gaps(
-                    track,
-                    threshold_seconds=60,
-                )
+                except Exception as exc:
 
-            except Exception as exc:
+                    st.error(
+                        f"Could not retrieve this flight track: {exc}"
+                    )
 
-                st.error(
-                    f"Could not retrieve this flight track: {exc}"
-                )
+                    track = pd.DataFrame()
+                    gaps = pd.DataFrame()
 
-                track = pd.DataFrame()
-                gaps = pd.DataFrame()
+                if not track.empty:
 
-            if not track.empty:
+                    st.caption(
+                        f"{len(track)} ADS-B positions · "
+                        f"{len(gaps)} observation gaps (>60 sec) · "
+                        "Gaps do not confirm GNSS interference."
+                    )
 
-                st.caption(
-                    f"{len(track)} ADS-B positions · "
-                    f"{len(gaps)} observation gaps (>60 sec) · "
-                    "Gaps do not confirm GNSS interference."
-                )
+                else:
 
-            else:
-
-                st.warning(
-                    "The selected flight record has no usable historical track points."
-                )
+                    st.warning(
+                        "The selected flight record has no usable historical track points."
+                    )
 
 
-# ---------------------------------------------------------
+    # ---------------------------------------------------------
+
+
 # LOAD GNSS REPORTS
 # ---------------------------------------------------------
 
@@ -521,68 +514,70 @@ with st.expander("Stanford GPS Lab data status", expanded=False):
 
 
 # ---------------------------------------------------------
-# GLOBAL GNSS HEATMAP FILTERS
-# ---------------------------------------------------------
+# GLOBAL GNSS HEATMAP FILTERS — COLLAPSIBLE
 
-st.markdown("### Global GNSS Interference Map")
+with st.expander("⚙️ Map Filters", expanded=False):
+    st.markdown("### Global GNSS Interference Map")
 
-st.caption(
-    "Hexagon colour represents the number of reports in each cell — "
-    "not measured RF interference strength."
-)
-
-filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(
-    [1.2, 1.1, 1.5, 1.0],
-    gap="small",
-)
-
-with filter_col1:
-    selected_report_date = st.date_input(
-        "Report date (UTC)",
-        value=pd.Timestamp.now(tz="UTC").date(),
-        key="heatmap_report_date",
+    st.caption(
+        "Hexagon colour represents the number of reports in each cell — "
+        "not measured RF interference strength."
     )
 
-with filter_col2:
-    selected_window = st.selectbox(
-        "Time window",
-        ["6 hours", "24 hours"],
-        index=1,
-        key="heatmap_time_window",
+    filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(
+        [1.2, 1.1, 1.5, 1.0],
+        gap="small",
     )
 
-with filter_col3:
-    event_type_options = [
-        "jamming",
-        "spoofing",
-        "interference",
-        "unknown",
-    ]
+    with filter_col1:
+        selected_report_date = st.date_input(
+            "Report date (UTC)",
+            value=pd.Timestamp.now(tz="UTC").date(),
+            key="heatmap_report_date",
+        )
 
-    selected_event_types = st.multiselect(
-        "Event types",
-        event_type_options,
-        default=event_type_options,
-        key="heatmap_event_types",
-    )
+    with filter_col2:
+        selected_window = st.selectbox(
+            "Time window",
+            ["6 hours", "24 hours"],
+            index=1,
+            key="heatmap_time_window",
+        )
 
-with filter_col4:
-    resolution_options = {
-        "3 — broad global view": 3,
-        "4 — regional view": 4,
-        "5 — local detail": 5,
-        "6 — high detail": 6,
-    }
-    selected_resolution_label = st.selectbox(
-        "H3 resolution",
-        list(resolution_options.keys()),
-        index=2,
-        key="heatmap_h3_resolution",
-    )
-    selected_resolution = resolution_options[selected_resolution_label]
+    with filter_col3:
+        event_type_options = [
+            "jamming",
+            "spoofing",
+            "interference",
+            "unknown",
+        ]
+
+        selected_event_types = st.multiselect(
+            "Event types",
+            event_type_options,
+            default=event_type_options,
+            key="heatmap_event_types",
+        )
+
+    with filter_col4:
+        resolution_options = {
+            "3 — broad global view": 3,
+            "4 — regional view": 4,
+            "5 — local detail": 5,
+            "6 — high detail": 6,
+        }
+        selected_resolution_label = st.selectbox(
+            "H3 resolution",
+            list(resolution_options.keys()),
+            index=2,
+            key="heatmap_h3_resolution",
+        )
+        selected_resolution = resolution_options[selected_resolution_label]
 
 
-# ---------------------------------------------------------
+    # ---------------------------------------------------------
+
+
 # FILTER REPORT DATA
 # ---------------------------------------------------------
 
@@ -663,50 +658,50 @@ else:
 # INVESTIGATION MAP
 # ---------------------------------------------------------
 
-st.markdown("### Flight Investigation")
+st.markdown("### Global GNSS Interference Map")
+st.caption("Global view is the default. Open Map Filters or Flight Investigation only when needed.")
 
 map_lat, map_lon = 15.0, 0.0
 map_result = None
 
-with st.container(border=True):
+try:
 
-    try:
+    estimated_route_points = (
+        search.get("estimated_route_points", [])
+        if search and search.get("search_type") == "route"
+        else []
+    )
 
-        estimated_route_points = (
-            search.get("estimated_route_points", [])
-            if search and search.get("search_type") == "route"
-            else []
-        )
+    if estimated_route_points and track.empty:
 
-        if estimated_route_points and track.empty:
+        map_lat = sum(
+            p["latitude"] for p in estimated_route_points
+        ) / 2
 
-            map_lat = sum(
-                p["latitude"] for p in estimated_route_points
-            ) / 2
+        map_lon = sum(
+            p["longitude"] for p in estimated_route_points
+        ) / 2
 
-            map_lon = sum(
-                p["longitude"] for p in estimated_route_points
-            ) / 2
+    map_result = render_investigation_map(
+        map_lat,
+        map_lon,
+        flight_route_points=estimated_route_points,
+        flight_track=track,
+        position_gaps=gaps,
+        gnss_reports=gnss_reports,
+        heatmap_cells=heatmap_cells,
+        stanford_data=stanford_data,
+    )
 
-        map_result = render_investigation_map(
-            map_lat,
-            map_lon,
-            flight_route_points=estimated_route_points,
-            flight_track=track,
-            position_gaps=gaps,
-            gnss_reports=gnss_reports,
-            heatmap_cells=heatmap_cells,
-            stanford_data=stanford_data,
-        )
+except Exception as exc:
 
-    except Exception as exc:
-
-        st.error(
-            f"The investigation map could not be loaded: {exc}"
-        )
+    st.error(
+        f"The investigation map could not be loaded: {exc}"
+    )
 
 
 # ---------------------------------------------------------
+
 # GEOJSON DOWNLOAD
 # ---------------------------------------------------------
 

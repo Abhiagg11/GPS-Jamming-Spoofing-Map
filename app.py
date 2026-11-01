@@ -1,3 +1,4 @@
+
 import json
 import streamlit as st
 import pandas as pd
@@ -23,91 +24,104 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------
-# CUSTOM STYLING
+# COMPACT FULL-SCREEN MAP STYLING
 # ---------------------------------------------------------
 
 st.markdown(
     """
     <style>
-        .stApp { background-color: #0b111b; }
+        .stApp {
+            background-color: #0b111b;
+        }
+
         .block-container {
             max-width: 100%;
-            padding: 2rem 0.9rem 0.4rem 0.9rem !important;
+            padding: 0.35rem 0.55rem 0.1rem 0.55rem !important;
         }
+
         [data-testid="stSidebar"] {
-            background-color: #111c2a;
-            border-right: 1px solid #26384c;
-            min-width: 255px;
-            max-width: 255px;
+            min-width: 285px;
+            max-width: 285px;
         }
-        [data-testid="stSidebar"] .block-container {
-            padding: 0.8rem 0.8rem;
+
+        [data-testid="stSidebarContent"] {
+            padding: 0.55rem 0.75rem 0.7rem 0.75rem;
         }
+
+        [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+            gap: 0.3rem;
+        }
+
+        [data-testid="stSidebar"] .stCaption {
+            font-size: 0.72rem;
+        }
+
+        [data-testid="stSidebar"] div[data-testid="stForm"] {
+            padding: 0.5rem;
+        }
+
         .main-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             border-bottom: 1px solid #26384c;
-            padding-bottom: 10px;
-            margin-bottom: 12px;
+            padding-bottom: 5px;
+            margin-bottom: 5px;
         }
+
         .main-header h1 {
             color: #f1f5f9;
-            font-size: 21px;
+            font-size: 19px;
             margin: 0;
         }
+
         .subtitle {
             color: #91a4b9;
             font-size: 12px;
-            margin-top: 3px;
+            margin-top: 1px;
         }
-        .sidebar-heading {
-            color: #f1f5f9;
-            font-size: 18px;
-            font-weight: 700;
-            margin-bottom: 3px;
-        }
-        .sidebar-hint {
-            color: #91a4b9;
-            font-size: 12px;
-            margin-bottom: 15px;
-        }
+
         .map-caption {
             color: #91a4b9;
             font-size: 11px;
-            padding-top: 5px;
+            padding-top: 2px;
         }
+
         div[data-testid="stForm"] {
             background: #172333;
             border: 1px solid #26384c;
             border-radius: 9px;
-            padding: 12px;
+            padding: 10px;
         }
+
         div[data-testid="stTextInput"] input,
         div[data-testid="stDateInput"] input {
-            min-height: 2.4rem;
+            min-height: 2.2rem;
         }
+
         div[data-testid="stVerticalBlock"] > div {
-            gap: 0.38rem;
+            gap: 0.35rem;
         }
-        .map-frame {
-            background: #111c2a;
-            border: 1px solid #26384c;
-            border-radius: 10px;
-            padding: 8px;
-        }
+
         div[data-testid="stAlert"] {
-            padding: 0.65rem 0.9rem;
+            padding: 0.55rem 0.8rem;
         }
-        hr { border-color: #26384c; }
-        footer { visibility: hidden; }
+
+        hr {
+            border-color: #26384c;
+        }
+
+        footer {
+            visibility: hidden;
+        }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
+
 # ---------------------------------------------------------
-# CACHED ADS-B PROVIDER CALLS
+# CACHED DATA PROVIDER CALLS
 # ---------------------------------------------------------
 
 @st.cache_data(ttl=900, show_spinner=False)
@@ -127,7 +141,6 @@ def cached_flight_track(flight_id):
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def cached_stanford_data():
-    # Load every Stanford date currently present in downloaded_json_files.
     return load_stanford_data("0001-01-01", "9999-12-31")
 
 
@@ -149,21 +162,24 @@ if "selected_flight_id" not in st.session_state:
 
 
 # ---------------------------------------------------------
-# SIDEBAR — FLIGHT SEARCH
+# SIDEBAR HEADER
 # ---------------------------------------------------------
 
 with st.sidebar:
+    st.markdown("## 🛰️ GNSS Investigator")
+    st.caption("Global interference monitoring and flight investigation")
+    st.divider()
 
-    st.markdown(
-        '<div class="sidebar-heading">🔎 Flight Search</div>',
-        unsafe_allow_html=True,
-    )
 
-    st.markdown(
-        '<div class="sidebar-hint">'
-        'Find a historical flight to investigate (latest 7 calendar days).'
-        '</div>',
-        unsafe_allow_html=True,
+# ---------------------------------------------------------
+# FLIGHT SEARCH — LEFT SIDEBAR
+# ---------------------------------------------------------
+
+with st.sidebar.expander("✈️ Flight Search", expanded=False):
+
+    st.caption(
+        "Find a historical flight to investigate "
+        "(latest 7 calendar days)."
     )
 
     search_method = st.radio(
@@ -171,8 +187,6 @@ with st.sidebar:
         ["By Route", "By Flight Number"],
         key="search_method",
     )
-
-    st.divider()
 
     if search_method == "By Route":
 
@@ -354,27 +368,7 @@ with st.sidebar:
 
 
 # ---------------------------------------------------------
-# MAIN HEADER
-# ---------------------------------------------------------
-
-st.markdown(
-    """
-    <div class="main-header">
-        <div>
-            <h1>🛰️ GNSS Interference Investigator</h1>
-            <div class="subtitle">
-                Global GNSS reports · Historical flight routes ·
-                ADS-B position gaps · Potential GNSS interference
-            </div>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-
-# ---------------------------------------------------------
-# FLIGHT SEARCH RESULTS
+# FLIGHT RESULTS — LEFT SIDEBAR
 # ---------------------------------------------------------
 
 search = st.session_state.flight_search
@@ -384,106 +378,107 @@ track = pd.DataFrame()
 gaps = pd.DataFrame()
 flight_metadata = None
 
-if search:
+with st.sidebar.expander(
+    "✈️ Flight Results",
+    expanded=bool(search),
+):
 
-    flights = search.get("flights", [])
+    if search:
 
-    if not flights:
+        flights = search.get("flights", [])
 
-        st.warning(
-            "No matching ADS-B records were returned. The map will show "
-            "an estimated airport-to-airport connection, not an actual flight path."
-        )
+        if not flights:
 
-    else:
-
-        def flight_label(flight):
-
-            callsign = flight.get("callsign") or "Unknown callsign"
-            origin = flight.get("start_airport_ident") or "Unknown origin"
-            destination = flight.get("end_airport_ident") or "Unknown destination"
-            start = flight.get("start_ts") or "Time unavailable"
-
-            return (
-                f"{callsign} | {origin} → {destination} | {start}"
+            st.warning(
+                "No matching ADS-B records were returned. "
+                "The map will show an estimated airport-to-airport "
+                "connection, not an actual flight path."
             )
 
-        options = {
-            flight.get("flight_id"): flight
-            for flight in flights
-            if flight.get("flight_id")
-        }
+        else:
 
-        if options:
+            def flight_label(flight):
+                callsign = flight.get("callsign") or "Unknown callsign"
+                origin = flight.get("start_airport_ident") or "Unknown origin"
+                destination = flight.get("end_airport_ident") or "Unknown destination"
+                start = flight.get("start_ts") or "Time unavailable"
 
-            labels = {
-                flight_label(flight): fid
-                for fid, flight in options.items()
+                return (
+                    f"{callsign} | {origin} → {destination} | {start}"
+                )
+
+            options = {
+                flight.get("flight_id"): flight
+                for flight in flights
+                if flight.get("flight_id")
             }
 
-            label_list = list(labels.keys())
+            if options:
 
-            current_id = st.session_state.selected_flight_id
-            default_index = 0
+                labels = {
+                    flight_label(flight): fid
+                    for fid, flight in options.items()
+                }
 
-            if current_id in options:
+                label_list = list(labels.keys())
 
-                for idx, label in enumerate(label_list):
+                current_id = st.session_state.selected_flight_id
+                default_index = 0
 
-                    if labels[label] == current_id:
-                        default_index = idx
-                        break
+                if current_id in options:
+                    for idx, label in enumerate(label_list):
+                        if labels[label] == current_id:
+                            default_index = idx
+                            break
 
-            selected_label = st.selectbox(
-                "Select the matching historical flight",
-                label_list,
-                index=default_index,
-                key=(
-                    f"flight_choice_{search['date']}_"
-                    f"{search.get('flight_number', search.get('departure', 'route'))}"
-                ),
-            )
+                selected_label = st.selectbox(
+                    "Select the matching historical flight",
+                    label_list,
+                    index=default_index,
+                    key=(
+                        f"flight_choice_{search['date']}_"
+                        f"{search.get('flight_number', search.get('departure', 'route'))}"
+                    ),
+                )
 
-            selected_id = labels[selected_label]
+                selected_id = labels[selected_label]
 
-            st.session_state.selected_flight_id = selected_id
-            selected_flight = options[selected_id]
+                st.session_state.selected_flight_id = selected_id
+                selected_flight = options[selected_id]
 
-            try:
+                try:
+                    with st.spinner("Retrieving historical aircraft positions..."):
 
-                with st.spinner("Retrieving historical aircraft positions..."):
+                        flight_metadata, track = cached_flight_track(
+                            selected_id
+                        )
 
-                    flight_metadata, track = cached_flight_track(
-                        selected_id
+                    gaps = detect_position_gaps(
+                        track,
+                        threshold_seconds=60,
                     )
 
-                gaps = detect_position_gaps(
-                    track,
-                    threshold_seconds=60,
-                )
+                except Exception as exc:
+                    st.error(
+                        f"Could not retrieve this flight track: {exc}"
+                    )
+                    track = pd.DataFrame()
+                    gaps = pd.DataFrame()
 
-            except Exception as exc:
+                if not track.empty:
+                    st.caption(
+                        f"{len(track)} ADS-B positions · "
+                        f"{len(gaps)} observation gaps (>60 sec) · "
+                        "Gaps do not confirm GNSS interference."
+                    )
+                else:
+                    st.warning(
+                        "The selected flight record has no usable "
+                        "historical track points."
+                    )
 
-                st.error(
-                    f"Could not retrieve this flight track: {exc}"
-                )
-
-                track = pd.DataFrame()
-                gaps = pd.DataFrame()
-
-            if not track.empty:
-
-                st.caption(
-                    f"{len(track)} ADS-B positions · "
-                    f"{len(gaps)} observation gaps (>60 sec) · "
-                    "Gaps do not confirm GNSS interference."
-                )
-
-            else:
-
-                st.warning(
-                    "The selected flight record has no usable historical track points."
-                )
+    else:
+        st.caption("No flight search performed. The global map remains available.")
 
 
 # ---------------------------------------------------------
@@ -493,57 +488,62 @@ if search:
 gnss_reports, gnss_report_errors = load_gnss_reports()
 
 if gnss_report_errors:
-    with st.expander("GNSS report import warnings", expanded=False):
+    with st.sidebar.expander("GNSS report warnings", expanded=False):
         for report_error in gnss_report_errors:
             st.warning(report_error)
 
 
 # ---------------------------------------------------------
-# LOAD STANFORD GPS LAB DATA
+# LOAD STANFORD DATA
 # ---------------------------------------------------------
 
 try:
     stanford_data = cached_stanford_data()
-except Exception as exc:
-    stanford_data = {"events": [], "jamming_cells": [], "spoofing_cells": []}
-    st.warning(f"Stanford GPS Lab data could not be loaded: {exc}")
 
-with st.expander("Stanford GPS Lab data status", expanded=False):
+except Exception as exc:
+    stanford_data = {
+        "events": [],
+        "jamming_cells": [],
+        "spoofing_cells": [],
+    }
+    st.sidebar.warning(
+        f"Stanford GPS Lab data could not be loaded: {exc}"
+    )
+
+with st.sidebar.expander("📡 Stanford GPS Lab data", expanded=False):
+
     st.write(f"Event locations: {len(stanford_data['events']):,}")
-    st.write(f"Jamming H3 observations: {len(stanford_data['jamming_cells']):,}")
-    st.write(f"Spoofing H3 observations: {len(stanford_data['spoofing_cells']):,}")
+    st.write(
+        f"Jamming H3 observations: "
+        f"{len(stanford_data['jamming_cells']):,}"
+    )
+    st.write(
+        f"Spoofing H3 observations: "
+        f"{len(stanford_data['spoofing_cells']):,}"
+    )
+
     st.caption(
-        "Source: Stanford GPS Lab (rfi.stanford.edu). Data licensed CC BY-NC 4.0. "
-        "Jamming cells represent aircraft navigation-quality observations, "
-        "not measured RF strength or confirmed interference coverage. "
-        "Spoofing cells are grouped by Stanford event ID."
+        "Source: Stanford GPS Lab (rfi.stanford.edu). "
+        "Data licensed CC BY-NC 4.0. Jamming cells represent "
+        "aircraft navigation-quality observations, not measured "
+        "RF strength or confirmed interference coverage."
     )
 
 
 # ---------------------------------------------------------
-# GLOBAL GNSS HEATMAP FILTERS
+# MAP FILTERS — LEFT SIDEBAR
 # ---------------------------------------------------------
 
-st.markdown("### Global GNSS Interference Map")
+with st.sidebar.expander("⚙️ Map Filters", expanded=False):
 
-st.caption(
-    "Hexagon colour represents the number of reports in each cell — "
-    "not measured RF interference strength."
-)
+    st.caption("Filter the local GNSS report layer.")
 
-filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(
-    [1.2, 1.1, 1.5, 1.0],
-    gap="small",
-)
-
-with filter_col1:
     selected_report_date = st.date_input(
         "Report date (UTC)",
         value=pd.Timestamp.now(tz="UTC").date(),
         key="heatmap_report_date",
     )
 
-with filter_col2:
     selected_window = st.selectbox(
         "Time window",
         ["6 hours", "24 hours"],
@@ -551,7 +551,6 @@ with filter_col2:
         key="heatmap_time_window",
     )
 
-with filter_col3:
     event_type_options = [
         "jamming",
         "spoofing",
@@ -566,24 +565,25 @@ with filter_col3:
         key="heatmap_event_types",
     )
 
-with filter_col4:
     resolution_options = {
         "3 — broad global view": 3,
         "4 — regional view": 4,
         "5 — local detail": 5,
         "6 — high detail": 6,
     }
+
     selected_resolution_label = st.selectbox(
         "H3 resolution",
         list(resolution_options.keys()),
         index=2,
         key="heatmap_h3_resolution",
     )
+
     selected_resolution = resolution_options[selected_resolution_label]
 
 
 # ---------------------------------------------------------
-# FILTER REPORT DATA
+# FILTER GNSS REPORT DATA
 # ---------------------------------------------------------
 
 window_hours = 6 if selected_window == "6 hours" else 24
@@ -592,7 +592,6 @@ now_utc = pd.Timestamp.now(tz="UTC")
 selected_day_start = pd.Timestamp(selected_report_date, tz="UTC")
 selected_day_end = selected_day_start + pd.Timedelta(days=1)
 
-# For today's date, do not include future reports.
 if selected_report_date == now_utc.date():
     window_end = min(selected_day_end, now_utc)
 else:
@@ -626,84 +625,95 @@ if not real_reports.empty:
 
 
 # ---------------------------------------------------------
-# BUILD HEATMAP CELLS
+# BUILD GNSS REPORT HEATMAP CELLS
 # ---------------------------------------------------------
 
 try:
-
     heatmap_cells = build_hex_cells(
         real_reports,
         resolution=selected_resolution,
     )
 
 except (ValueError, TypeError) as exc:
-
     heatmap_cells = []
-    st.error(f"Could not build GNSS heatmap cells: {exc}")
+    st.sidebar.error(f"Could not build GNSS heatmap cells: {exc}")
 
 
 if heatmap_cells:
-
-    st.caption(
+    st.sidebar.caption(
         f"{len(real_reports)} real report(s) · "
         f"{len(heatmap_cells)} populated cell(s) · "
         f"{window_start:%Y-%m-%d %H:%M} to "
         f"{window_end:%Y-%m-%d %H:%M} UTC"
     )
-
 else:
-
-    st.info(
-        "No real GNSS reports match these filters. Empty areas indicate "
-        "no available report data, not confirmed absence of interference."
+    st.sidebar.info(
+        "No real GNSS reports match these filters. "
+        "Empty areas indicate no available report data, "
+        "not confirmed absence of interference."
     )
+
+
+# ---------------------------------------------------------
+# MAIN MAP-FIRST HEADER
+# ---------------------------------------------------------
+
+st.markdown(
+    """
+    <div class="main-header">
+        <div>
+            <h1>🛰️ GNSS Interference Investigator</h1>
+            <div class="subtitle">
+                Global GNSS reports · Historical flight routes ·
+                ADS-B position gaps · Potential GNSS interference
+            </div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 # ---------------------------------------------------------
 # INVESTIGATION MAP
 # ---------------------------------------------------------
 
-st.markdown("### Flight Investigation")
-
 map_lat, map_lon = 15.0, 0.0
 map_result = None
 
-with st.container(border=True):
+try:
 
-    try:
+    estimated_route_points = (
+        search.get("estimated_route_points", [])
+        if search and search.get("search_type") == "route"
+        else []
+    )
 
-        estimated_route_points = (
-            search.get("estimated_route_points", [])
-            if search and search.get("search_type") == "route"
-            else []
-        )
+    if estimated_route_points and track.empty:
 
-        if estimated_route_points and track.empty:
+        map_lat = sum(
+            p["latitude"] for p in estimated_route_points
+        ) / 2
 
-            map_lat = sum(
-                p["latitude"] for p in estimated_route_points
-            ) / 2
+        map_lon = sum(
+            p["longitude"] for p in estimated_route_points
+        ) / 2
 
-            map_lon = sum(
-                p["longitude"] for p in estimated_route_points
-            ) / 2
+    map_result = render_investigation_map(
+        map_lat,
+        map_lon,
+        flight_route_points=estimated_route_points,
+        flight_track=track,
+        position_gaps=gaps,
+        gnss_reports=gnss_reports,
+        heatmap_cells=heatmap_cells,
+        stanford_data=stanford_data,
+    )
 
-        map_result = render_investigation_map(
-            map_lat,
-            map_lon,
-            flight_route_points=estimated_route_points,
-            flight_track=track,
-            position_gaps=gaps,
-            gnss_reports=gnss_reports,
-            heatmap_cells=heatmap_cells,
-            stanford_data=stanford_data,
-        )
-
-    except Exception as exc:
-
-        st.error(
-            f"The investigation map could not be loaded: {exc}"
-        )
+except Exception as exc:
+    st.error(
+        f"The investigation map could not be loaded: {exc}"
+    )
 
 
 # ---------------------------------------------------------
@@ -724,12 +734,12 @@ if isinstance(map_result, dict) and map_result.get("geometry"):
 
 
 # ---------------------------------------------------------
-# COLLAPSED FLIGHT DETAILS
+# FLIGHT DETAILS
 # ---------------------------------------------------------
 
 if not track.empty:
 
-    with st.expander(
+    with st.sidebar.expander(
         "Flight data and detected gaps",
         expanded=False,
     ):
@@ -747,13 +757,9 @@ if not track.empty:
         )
 
         if gaps.empty:
-
-            st.write(
-                "No gaps above 60 seconds were detected."
-            )
+            st.write("No gaps above 60 seconds were detected.")
 
         else:
-
             display_gaps = gaps.copy()
 
             for col in ["previous_timestamp", "timestamp"]:
