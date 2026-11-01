@@ -1,0 +1,1132 @@
+import requests
+import streamlit as st
+import folium
+import pandas as pd
+from html import escape
+
+from branca.element import Element
+from folium.plugins import Draw, Fullscreen, MousePosition
+from streamlit_folium import st_folium
+
+
+# =========================================================
+# MAP TILE SOURCES
+# =========================================================
+
+LIGHT_BASE = (
+    "https://server.arcgisonline.com/ArcGIS/rest/services/"
+    "World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+)
+
+DARK_BASE = (
+    "https://server.arcgisonline.com/ArcGIS/rest/services/"
+    "Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+)
+
+DARK_LABELS = (
+    "https://server.arcgisonline.com/ArcGIS/rest/services/"
+    "Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+)
+
+MIN_TILE_ZOOM = 2.8
+MAX_TILE_ZOOM = 19
+MAX_NATIVE_TILE_ZOOM = 16
+
+
+# =========================================================
+# LOCATION SEARCH
+# =========================================================
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def search_location(query):
+
+    response = requests.get(
+        "https://nominatim.openstreetmap.org/search",
+        params={
+            "q": query,
+            "format": "jsonv2",
+            "limit": 1,
+        },
+        headers={
+            "User-Agent": "GNSS-Interference-Investigator/1.0"
+        },
+        timeout=15,
+    )
+
+    response.raise_for_status()
+    results = response.json()
+
+    if not results:
+        return None
+
+    return {
+        "latitude": float(results[0]["lat"]),
+        "longitude": float(results[0]["lon"]),
+        "name": results[0].get("display_name", query),
+    }
+
+
+def parse_coordinates(query):
+
+    try:
+        parts = [part.strip() for part in query.split(",")]
+
+        if len(parts) != 2:
+            return None
+
+        latitude = float(parts[0])
+        longitude = float(parts[1])
+
+        if not -90 <= latitude <= 90:
+            return None
+
+        if not -180 <= longitude <= 180:
+            return None
+
+        return latitude, longitude
+
+    except (ValueError, TypeError):
+        return None
+
+
+# =========================================================
+# MANUAL ROUTE PARSER
+# =========================================================
+
+def parse_route_points(route_text):
+
+    points = []
+
+    for line_number, line in enumerate(
+        route_text.splitlines(), start=1
+    ):
+
+        line = line.strip()
+
+        if not line or line.startswith("#"):
+            continue
+
+        parts = [part.strip() for part in line.split(",")]
+
+        if len(parts) != 3:
+            raise ValueError(
+                f"Line {line_number}: use Name, latitude, longitude."
+            )
+
+        name = parts[0]
+
+        try:
+            lat = float(parts[1])
+            lon = float(parts[2])
+
+        except ValueError:
+            raise ValueError(
+                f"Line {line_number}: latitude and longitude must be numbers."
+            )
+
+        if not name:
+            raise ValueError(
+                f"Line {line_number}: point name is missing."
+            )
+
+        if not -90 <= lat <= 90 or not -180 <= lon <= 180:
+            raise ValueError(
+                f"Line {line_number}: coordinates are outside valid ranges."
+            )
+
+        points.append({
+            "name": name,
+            "latitude": lat,
+            "longitude": lon,
+        })
+
+    if len(points) == 1:
+        raise ValueError("Enter at least two points to draw a route.")
+
+    return points
+
+
+# =========================================================
+# MAIN MAP FUNCTION
+# =========================================================
+
+def render_investigation_map(
+    latitude=15.0,
+    longitude=0.0,
+    flight_route_points=None,
+    flight_track=None,
+    position_gaps=None,
+    gnss_reports=None,
+    heatmap_cells=None,
+    stanford_data=None,
+):
+
+    # -----------------------------------------------------
+    # VALIDATE COORDINATES
+    # -----------------------------------------------------
+
+    try:
+        latitude = float(latitude)
+        longitude = float(longitude)
+
+        if not -90 <= latitude <= 90:
+            latitude = 15.0
+
+        if not -180 <= longitude <= 180:
+            longitude = 0.0
+
+    except (TypeError, ValueError):
+        latitude = 15.0
+        longitude = 0.0
+
+    # -----------------------------------------------------
+    # SESSION STATE
+    # -----------------------------------------------------
+
+    if "investigation_map_center" not in st.session_state:
+        st.session_state.investigation_map_center = [
+            latitude, longitude
+        ]
+
+    if "investigation_map_zoom" not in st.session_state:
+        st.session_state.investigation_map_zoom = 2.7
+
+    if "investigation_map_search_name" not in st.session_state:
+        st.session_state.investigation_map_search_name = ""
+
+    if "investigation_map_theme" not in st.session_state:
+        st.session_state.investigation_map_theme = "Light"
+
+    if "investigation_show_labels" not in st.session_state:
+        st.session_state.investigation_show_labels = True
+
+    manual_route_points = []
+
+    with st.expander("⚙️ Map tools and settings", expanded=False):
+        # -----------------------------------------------------
+        # MAP TOOLBAR
+        # -----------------------------------------------------
+
+        st.markdown("##### Map controls")
+
+        theme_col, labels_col, global_col, reset_col, search_col = (
+            st.columns([1.0, 1.5, 1.0, 0.8, 3.0], gap="small")
+        )
+
+        with theme_col:
+
+            st.selectbox(
+                "Map appearance",
+                ["Light", "Dark"],
+                key="investigation_map_theme",
+            )
+
+        with labels_col:
+
+            st.checkbox(
+                "Show country and city labels",
+                key="investigation_show_labels",
+            )
+
+        with global_col:
+
+            st.write("")
+
+            if st.button("🌍 Global view", use_container_width=True):
+
+                st.session_state.investigation_map_center = [15.0, 0.0]
+                st.session_state.investigation_map_zoom = 2.7
+                st.session_state.investigation_map_search_name = ""
+
+                st.rerun()
+
+        with reset_col:
+
+            st.write("")
+
+            if st.button("↺ Reset", use_container_width=True):
+
+                st.session_state.investigation_map_center = [
+                    latitude, longitude
+                ]
+
+                st.session_state.investigation_map_zoom = 2.7
+                st.session_state.investigation_map_search_name = ""
+
+                st.rerun()
+
+        with search_col:
+
+            with st.form("investigation_location_search"):
+
+                search_col1, search_col2 = st.columns(
+                    [4, 1],
+                    gap="small",
+                )
+
+                with search_col1:
+
+                    location_query = st.text_input(
+                        "Search location",
+                        placeholder="City, country or latitude, longitude",
+                        label_visibility="collapsed",
+                    )
+
+                with search_col2:
+
+                    search_submitted = st.form_submit_button(
+                        "🔎 Search",
+                        use_container_width=True,
+                    )
+
+            if search_submitted:
+
+                if not location_query.strip():
+
+                    st.warning("Enter a location to search.")
+
+                else:
+
+                    coordinates = parse_coordinates(
+                        location_query.strip()
+                    )
+
+                    try:
+
+                        if coordinates:
+
+                            new_latitude, new_longitude = coordinates
+                            location_name = "Entered coordinates"
+
+                        else:
+
+                            with st.spinner("Searching location..."):
+
+                                location = search_location(
+                                    location_query.strip()
+                                )
+
+                            if not location:
+
+                                st.error("Location not found. Try another search.")
+                                location_name = None
+
+                            else:
+
+                                new_latitude = location["latitude"]
+                                new_longitude = location["longitude"]
+                                location_name = location["name"]
+
+                        if location_name:
+
+                            st.session_state.investigation_map_center = [
+                                new_latitude,
+                                new_longitude,
+                            ]
+
+                            st.session_state.investigation_map_zoom = 7
+
+                            st.session_state.investigation_map_search_name = (
+                                location_name
+                            )
+
+                            st.rerun()
+
+                    except requests.RequestException as exc:
+
+                        st.error(f"Location search failed: {exc}")
+
+        # -----------------------------------------------------
+        # MANUAL FLIGHT ROUTE INPUT
+        # -----------------------------------------------------
+
+        with st.expander("✈️ Add a test flight route", expanded=False):
+
+            st.caption(
+                "Enter one point per line using: Name, latitude, longitude."
+            )
+
+            route_text = st.text_area(
+                "Route points",
+                placeholder=(
+                    "Departure, 6.5774, 3.3212\n"
+                    "Waypoint 1, 7.5000, 4.5000\n"
+                    "Arrival, 9.0068, 7.2631"
+                ),
+                height=110,
+                key="manual_flight_route_text",
+                label_visibility="collapsed",
+            )
+
+            if route_text.strip():
+
+                try:
+
+                    manual_route_points = parse_route_points(route_text)
+
+                    st.success(
+                        f"{len(manual_route_points)} route points ready to display."
+                    )
+
+                except ValueError as exc:
+
+                    st.error(str(exc))
+
+
+    # -----------------------------------------------------
+    # SELECT ROUTE TO DISPLAY
+    # -----------------------------------------------------
+
+    display_route_points = []
+
+    is_estimated_route = False
+
+    if flight_route_points and len(flight_route_points) >= 2:
+
+        display_route_points = flight_route_points
+        is_estimated_route = True
+
+    elif manual_route_points and len(manual_route_points) >= 2:
+
+        display_route_points = manual_route_points
+
+    # -----------------------------------------------------
+    # CURRENT MAP POSITION
+    # -----------------------------------------------------
+
+    map_lat, map_lon = (
+        st.session_state.investigation_map_center
+    )
+
+    map_zoom = st.session_state.investigation_map_zoom
+
+    map_zoom = max(
+        MIN_TILE_ZOOM,
+        min(MAX_TILE_ZOOM, float(map_zoom)),
+    )
+
+    # -----------------------------------------------------
+    # CREATE MAP
+    # -----------------------------------------------------
+
+    m = folium.Map(
+        location=[map_lat, map_lon],
+        zoom_start=map_zoom,
+        min_zoom=MIN_TILE_ZOOM,
+        max_zoom=MAX_TILE_ZOOM,
+        zoom_snap=0.1,
+        tiles=None,
+        control_scale=True,
+        prefer_canvas=True,
+    )
+
+    # Automatically zoom to the selected route or actual ADS-B track.
+    flight_bounds = []
+
+    if display_route_points and len(display_route_points) >= 2:
+        flight_bounds.extend([
+            [point["latitude"], point["longitude"]]
+            for point in display_route_points
+        ])
+
+    if flight_track is not None and not flight_track.empty:
+        flight_bounds.extend([
+            [float(row.latitude), float(row.longitude)]
+            for row in flight_track.itertuples()
+        ])
+
+    if flight_bounds:
+        m.fit_bounds(flight_bounds, padding=(45, 45))
+
+    # -----------------------------------------------------
+    # MAP CONTROL STYLING
+    # -----------------------------------------------------
+
+    css = """
+    <style>
+
+        .leaflet-container {
+            font-family: Arial, sans-serif;
+            background: #171b24 !important;
+        }
+
+        .leaflet-control {
+            border: 1px solid rgba(255,255,255,0.12) !important;
+            border-radius: 9px !important;
+            overflow: hidden;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.35) !important;
+        }
+
+        .leaflet-draw-toolbar a {
+            background-color: #202938 !important;
+            border-bottom: 1px solid #354154 !important;
+        }
+
+        .leaflet-draw-toolbar a:hover {
+            background-color: #34445c !important;
+        }
+
+        .leaflet-draw-actions a {
+            background-color: #202938 !important;
+            color: #e5eaf2 !important;
+            border-bottom: 1px solid #354154 !important;
+            font-size: 11px !important;
+        }
+
+        .leaflet-draw-actions a:hover {
+            background-color: #34445c !important;
+            color: white !important;
+        }
+
+        .leaflet-control-zoom a,
+        .leaflet-control-fullscreen a {
+            background-color: #202938 !important;
+            color: #f1f5f9 !important;
+            border-bottom: 1px solid #354154 !important;
+        }
+
+        .leaflet-control-zoom a:hover,
+        .leaflet-control-fullscreen a:hover {
+            background-color: #34445c !important;
+            color: white !important;
+        }
+
+        .leaflet-control-mouseposition {
+            background: rgba(25, 34, 48, 0.92) !important;
+            color: #e5eaf2 !important;
+            padding: 4px 8px !important;
+            border: 1px solid rgba(255,255,255,0.15) !important;
+            border-radius: 6px !important;
+            font-size: 10px !important;
+            font-family: Arial, sans-serif !important;
+        }
+
+        .leaflet-control-scale-line {
+            background: rgba(25, 34, 48, 0.85) !important;
+            color: #e5eaf2 !important;
+            border: 1px solid #aab4c2 !important;
+            border-top: none !important;
+            font-size: 10px !important;
+            padding: 2px 5px !important;
+            box-sizing: border-box;
+        }
+
+        .leaflet-control-attribution {
+            background: rgba(25, 34, 48, 0.85) !important;
+            color: #cbd5e1 !important;
+            font-size: 9px !important;
+            padding: 3px 7px !important;
+            border-radius: 6px 0 0 0 !important;
+        }
+
+        .leaflet-control-attribution a {
+            color: #8ab4f8 !important;
+        }
+
+        .leaflet-popup-content-wrapper,
+        .leaflet-popup-tip {
+            background: #202938 !important;
+            color: #f1f5f9 !important;
+        }
+
+    </style>
+    """
+
+    m.get_root().header.add_child(Element(css))
+
+    # -----------------------------------------------------
+    # SELECT LIGHT OR DARK BASEMAP
+    # -----------------------------------------------------
+
+    map_theme = st.session_state.investigation_map_theme
+    show_labels = st.session_state.investigation_show_labels
+
+    if map_theme == "Light":
+        base_tiles = LIGHT_BASE
+    else:
+        base_tiles = DARK_BASE
+
+    base_attribution = (
+        "Sources: Esri, HERE, Garmin, "
+        "© OpenStreetMap contributors, GIS community"
+    )
+
+    label_attribution = (
+        "Labels: Esri, HERE, Garmin and contributors"
+    )
+
+    # -----------------------------------------------------
+    # BASE MAP
+    # -----------------------------------------------------
+
+    folium.TileLayer(
+        tiles=base_tiles,
+        attr=base_attribution,
+        name=f"{map_theme} Map",
+        overlay=False,
+        control=False,
+        show=True,
+        min_zoom=MIN_TILE_ZOOM,
+        max_zoom=MAX_TILE_ZOOM,
+        max_native_zoom=MAX_NATIVE_TILE_ZOOM,
+        no_wrap=False,
+    ).add_to(m)
+
+    # -----------------------------------------------------
+    # COUNTRY AND CITY LABELS
+    # -----------------------------------------------------
+
+    if show_labels and map_theme == "Dark":
+
+        folium.TileLayer(
+            tiles=DARK_LABELS,
+            attr=label_attribution,
+            name="Country and City Labels",
+            overlay=True,
+            control=False,
+            show=True,
+            opacity=1.0,
+            min_zoom=MIN_TILE_ZOOM,
+            max_zoom=MAX_TILE_ZOOM,
+            max_native_zoom=MAX_NATIVE_TILE_ZOOM,
+            no_wrap=False,
+        ).add_to(m)
+
+    # -----------------------------------------------------
+    # INVESTIGATION CENTRE MARKER
+    # -----------------------------------------------------
+
+    if not display_route_points and (flight_track is None or flight_track.empty):
+
+        folium.CircleMarker(
+            location=[map_lat, map_lon],
+            radius=7,
+            color="white",
+            weight=3,
+            fill=True,
+            fill_color="#1677d2",
+            fill_opacity=1,
+            tooltip="Map Focus",
+            popup=folium.Popup(
+                f"""
+                <b>Map Focus</b><br>
+                Latitude: {map_lat:.5f}<br>
+                Longitude: {map_lon:.5f}
+                """,
+                max_width=250,
+            ),
+        ).add_to(m)
+
+    # -----------------------------------------------------
+    # FLIGHT ROUTE LAYER
+    # -----------------------------------------------------
+
+    if display_route_points and len(display_route_points) >= 2:
+
+        route_layer_name = (
+            "Estimated Airport Connection"
+            if is_estimated_route
+            else "Manual Test Route"
+        )
+
+        route_layer = folium.FeatureGroup(
+            name=route_layer_name,
+            show=True,
+        )
+
+        route_coordinates = [
+            [point["latitude"], point["longitude"]]
+            for point in display_route_points
+        ]
+
+        folium.PolyLine(
+            locations=route_coordinates,
+            color="#F59E0B" if is_estimated_route else "#00B8D9",
+            weight=4,
+            opacity=0.9,
+            dash_array="8, 8" if is_estimated_route else None,
+            tooltip=(
+                "Estimated airport connection — not actual flight track"
+                if is_estimated_route
+                else "Manual test route"
+            ),
+        ).add_to(route_layer)
+
+        for index, point in enumerate(display_route_points):
+
+            if index == 0:
+                marker_color = "#16A34A"
+                point_type = "Departure"
+
+            elif index == len(display_route_points) - 1:
+                marker_color = "#DC2626"
+                point_type = "Destination"
+
+            else:
+                marker_color = "#F59E0B"
+                point_type = "Waypoint"
+
+            folium.CircleMarker(
+                location=[
+                    point["latitude"],
+                    point["longitude"],
+                ],
+                radius=7,
+                color="#FFFFFF",
+                weight=2,
+                fill=True,
+                fill_color=marker_color,
+                fill_opacity=1,
+                tooltip=f"{point_type}: {point['name']}",
+                popup=folium.Popup(
+                    f"<b>{point_type}</b><br>"
+                    f"{point['name']}<br>"
+                    f"Latitude: {point['latitude']:.5f}<br>"
+                    f"Longitude: {point['longitude']:.5f}",
+                    max_width=260,
+                ),
+            ).add_to(route_layer)
+
+        route_layer.add_to(m)
+
+    # -----------------------------------------------------
+    # ACTUAL HISTORICAL ADS-B TRACK
+    # -----------------------------------------------------
+
+    if flight_track is not None and not flight_track.empty:
+        track_layer = folium.FeatureGroup(
+            name="Historical ADS-B Flight Track",
+            show=True,
+        )
+
+        ordered_track = flight_track.sort_values("timestamp").reset_index(drop=True)
+        current_segment = []
+        previous_row = None
+
+        for row in ordered_track.itertuples():
+            point = [float(row.latitude), float(row.longitude)]
+            timestamp = pd.Timestamp(row.timestamp)
+
+            break_line = False
+            if previous_row is not None:
+                previous_time = pd.Timestamp(previous_row.timestamp)
+                elapsed = (timestamp - previous_time).total_seconds()
+                previous_segment = getattr(previous_row, "segment", 0)
+                current_segment_id = getattr(row, "segment", 0)
+                break_line = elapsed > 60 or current_segment_id != previous_segment
+
+            if break_line and len(current_segment) >= 2:
+                folium.PolyLine(
+                    current_segment,
+                    color="#22C55E",
+                    weight=4,
+                    opacity=0.95,
+                    tooltip="Historical ADS-B positions",
+                ).add_to(track_layer)
+                current_segment = []
+
+            current_segment.append(point)
+            previous_row = row
+
+        if len(current_segment) >= 2:
+            folium.PolyLine(
+                current_segment,
+                color="#22C55E",
+                weight=4,
+                opacity=0.95,
+                tooltip="Historical ADS-B positions",
+            ).add_to(track_layer)
+
+        first = ordered_track.iloc[0]
+        last = ordered_track.iloc[-1]
+        folium.CircleMarker(
+            [float(first["latitude"]), float(first["longitude"])],
+            radius=6, color="white", weight=2, fill=True,
+            fill_color="#16A34A", fill_opacity=1,
+            tooltip=f"First ADS-B position: {first['timestamp']}",
+        ).add_to(track_layer)
+        folium.CircleMarker(
+            [float(last["latitude"]), float(last["longitude"])],
+            radius=6, color="white", weight=2, fill=True,
+            fill_color="#DC2626", fill_opacity=1,
+            tooltip=f"Last ADS-B position: {last['timestamp']}",
+        ).add_to(track_layer)
+
+        track_layer.add_to(m)
+
+    # -----------------------------------------------------
+    # ADS-B OBSERVATION GAPS
+    # -----------------------------------------------------
+
+    if position_gaps is not None and not position_gaps.empty:
+        gap_layer = folium.FeatureGroup(
+            name="ADS-B Observation Gaps (>60 sec)",
+            show=True,
+        )
+
+        for gap in position_gaps.itertuples():
+            start = [float(gap.previous_latitude), float(gap.previous_longitude)]
+            end = [float(gap.latitude), float(gap.longitude)]
+            seconds = float(gap.gap_seconds)
+
+            folium.PolyLine(
+                [start, end],
+                color="#F97316",
+                weight=4,
+                opacity=0.95,
+                dash_array="5, 7",
+                tooltip=f"ADS-B observation gap: {seconds:.1f} seconds",
+            ).add_to(gap_layer)
+
+            folium.CircleMarker(
+                start, radius=5, color="#F97316", weight=2,
+                fill=True, fill_color="#F97316", fill_opacity=1,
+                tooltip="Last position before ADS-B gap",
+            ).add_to(gap_layer)
+            folium.CircleMarker(
+                end, radius=5, color="#F97316", weight=2,
+                fill=True, fill_color="#F97316", fill_opacity=1,
+                tooltip="Next received position after ADS-B gap",
+            ).add_to(gap_layer)
+
+        gap_layer.add_to(m)
+
+    # -----------------------------------------------------
+    # GLOBAL GNSS REPORT-DENSITY HEX CELLS
+    # -----------------------------------------------------
+
+    if heatmap_cells:
+        heatmap_layer = folium.FeatureGroup(
+            name="GNSS Report Density (Hex Cells)",
+            show=True,
+        )
+
+        max_count = max(cell.get("report_count", 0) for cell in heatmap_cells) or 1
+
+        def density_colour(count):
+            ratio = count / max_count
+            if ratio <= 0.25:
+                return "#38BDF8"
+            if ratio <= 0.50:
+                return "#2DD4BF"
+            if ratio <= 0.75:
+                return "#FACC15"
+            return "#F97316"
+
+        for cell in heatmap_cells:
+            count = int(cell.get("report_count", 0))
+            colour = density_colour(count)
+            event_types = escape(", ".join(cell.get("event_types", [])) or "Unknown")
+            sources = escape(", ".join(cell.get("sources", [])) or "Unknown")
+            timestamps = escape(", ".join(cell.get("timestamps", [])) or "Unknown")
+
+            popup_html = (
+                f"<b>GNSS Report Cell</b><br>"
+                f"Reports: {count}<br>"
+                f"Event types: {event_types}<br>"
+                f"Sources: {sources}<br>"
+                f"Report timestamps (UTC): {timestamps}<br><br>"
+                f"<i>Colour indicates report count, not measured RF strength.</i>"
+            )
+
+            folium.Polygon(
+                locations=cell["boundary"],
+                color=colour,
+                weight=1,
+                opacity=0.9,
+                fill=True,
+                fill_color=colour,
+                fill_opacity=0.45,
+                tooltip=f"{count} GNSS report(s) in cell",
+                popup=folium.Popup(popup_html, max_width=320),
+            ).add_to(heatmap_layer)
+
+        heatmap_layer.add_to(m)
+
+    # -----------------------------------------------------
+    # STANFORD GPS LAB DATA — DISTINCT EVIDENCE LAYERS
+    # -----------------------------------------------------
+
+    stanford_data = stanford_data or {}
+    stanford_events = stanford_data.get("events", [])
+    stanford_jamming_cells = stanford_data.get("jamming_cells", [])
+    stanford_spoofing_cells = stanford_data.get("spoofing_cells", [])
+
+    # Event points are reported event locations, not coverage boundaries.
+    if stanford_events:
+        for event_type, color, layer_name in [
+            ("jamming", "#F97316", "Stanford Jamming Events"),
+            ("spoofing", "#A855F7", "Stanford Spoofing Events"),
+        ]:
+            event_layer = folium.FeatureGroup(name=layer_name, show=False)
+
+            for event in stanford_events:
+                if event.get("event_type") != event_type:
+                    continue
+
+                event_id = escape(str(event.get("event_id", "Unknown")))
+                event_date = escape(str(event.get("date", "Unknown")))
+                affected = event.get("affected_flights")
+                affected_text = (
+                    escape(str(affected)) if affected is not None else "Not provided"
+                )
+                lat = float(event["latitude"])
+                lon = float(event["longitude"])
+
+                folium.CircleMarker(
+                    location=[lat, lon],
+                    radius=6,
+                    color="#FFFFFF",
+                    weight=1.5,
+                    fill=True,
+                    fill_color=color,
+                    fill_opacity=0.9,
+                    tooltip=f"Stanford {event_type.title()} event · {event_date}",
+                    popup=folium.Popup(
+                        f"<b>Stanford GPS Lab — {event_type.title()} Event</b><br>"
+                        f"Event ID: {event_id}<br>"
+                        f"Date (UTC): {event_date}<br>"
+                        f"Affected flights (reported): {affected_text}<br>"
+                        f"Latitude: {lat:.5f}<br>Longitude: {lon:.5f}<br><br>"
+                        "<i>Event location only; it does not define an affected-area boundary.</i>",
+                        max_width=320,
+                    ),
+                ).add_to(event_layer)
+
+            event_layer.add_to(m)
+
+    # Jamming heatmap cells describe low navigation-quality observations.
+    # Render only non-zero cells and cap the displayed set for browser performance.
+    active_jamming = [
+        cell for cell in stanford_jamming_cells
+        if int(cell.get("low_quality_count", 0) or 0) > 0
+        and int(cell.get("total_aircraft_count", 0) or 0) > 0
+    ]
+    active_jamming.sort(
+        key=lambda cell: (
+            int(cell.get("low_quality_count", 0) or 0)
+            / max(int(cell.get("total_aircraft_count", 0) or 0), 1),
+            int(cell.get("low_quality_count", 0) or 0),
+        ),
+        reverse=True,
+    )
+    jamming_display_limit = 2500
+    displayed_jamming = active_jamming[:jamming_display_limit]
+
+    if displayed_jamming:
+        stanford_jamming_layer = folium.FeatureGroup(
+            name=f"Stanford Navigation-Quality Cells ({len(displayed_jamming):,})",
+            show=False,
+        )
+
+        for cell in displayed_jamming:
+            low_count = int(cell.get("low_quality_count", 0) or 0)
+            total_count = int(cell.get("total_aircraft_count", 0) or 0)
+            percentage = 100 * low_count / total_count if total_count else 0
+            colour = "#DC2626" if percentage >= 50 else "#F97316"
+            date_text = escape(str(cell.get("date", "Unknown")))
+            cell_id = escape(str(cell.get("cell_id", "Unknown")))
+
+            folium.Polygon(
+                locations=cell["boundary"],
+                color=colour,
+                weight=0.7,
+                opacity=0.8,
+                fill=True,
+                fill_color=colour,
+                fill_opacity=0.35,
+                tooltip=f"Stanford navigation-quality observations: {low_count}/{total_count} ({percentage:.1f}%)",
+                popup=folium.Popup(
+                    "<b>Stanford GPS Lab — Daily Navigation-Quality Cell</b><br>"
+                    f"Date (UTC): {date_text}<br>"
+                    f"H3 cell: {cell_id}<br>"
+                    f"Low-quality observations: {low_count}<br>"
+                    f"Total aircraft observations: {total_count}<br>"
+                    f"Low-quality share: {percentage:.1f}%<br><br>"
+                    "<i>These are navigation-quality observations, not measured RF strength "
+                    "or confirmed jamming coverage.</i>",
+                    max_width=340,
+                ),
+            ).add_to(stanford_jamming_layer)
+
+        stanford_jamming_layer.add_to(m)
+
+    # Stanford spoofing H3 cells are kept separate from jamming cells.
+    if stanford_spoofing_cells:
+        stanford_spoofing_layer = folium.FeatureGroup(
+            name=f"Stanford Spoofing H3 Cells ({len(stanford_spoofing_cells):,})",
+            show=False,
+        )
+
+        for cell in stanford_spoofing_cells:
+            spoofed_count = int(cell.get("spoofed_flight_count", 0) or 0)
+            seen_count = int(cell.get("seen_aircraft_count", 0) or 0)
+            event_id = escape(str(cell.get("event_id", "Unknown")))
+            date_text = escape(str(cell.get("date", "Unknown")))
+            cell_id = escape(str(cell.get("cell_id", "Unknown")))
+
+            folium.Polygon(
+                locations=cell["boundary"],
+                color="#A855F7",
+                weight=0.8,
+                opacity=0.85,
+                fill=True,
+                fill_color="#A855F7",
+                fill_opacity=0.35,
+                tooltip=f"Stanford spoofing cell · {spoofed_count} spoofed flight(s)",
+                popup=folium.Popup(
+                    "<b>Stanford GPS Lab — Spoofing H3 Cell</b><br>"
+                    f"Date (UTC): {date_text}<br>"
+                    f"Event: {event_id}<br>"
+                    f"H3 cell: {cell_id}<br>"
+                    f"Spoofed flights: {spoofed_count}<br>"
+                    f"Seen aircraft: {seen_count}<br><br>"
+                    "<i>Cell is associated with a Stanford spoofing event; "
+                    "it is not a precise RF boundary.</i>",
+                    max_width=340,
+                ),
+            ).add_to(stanford_spoofing_layer)
+
+        stanford_spoofing_layer.add_to(m)
+
+    # -----------------------------------------------------
+    # GNSS INTERFERENCE REPORTS
+    # -----------------------------------------------------
+
+    if gnss_reports is not None and not gnss_reports.empty:
+        reports_layer = folium.FeatureGroup(
+            name="GNSS Interference Reports",
+            show=True,
+        )
+
+        event_colors = {
+            "jamming": "#EF4444",
+            "spoofing": "#A855F7",
+            "interference": "#F97316",
+            "unknown": "#38BDF8",
+        }
+
+        for report in gnss_reports.itertuples(index=False):
+            event_type = str(getattr(report, "event_type", "unknown")).lower()
+            color = event_colors.get(event_type, "#38BDF8")
+            timestamp = escape(str(getattr(report, "timestamp", "Unknown time")))
+            confidence = escape(str(getattr(report, "confidence", "Unknown")))
+            source = escape(str(getattr(report, "source", "Unknown")))
+            safe_event = escape(event_type.title())
+            latitude_value = float(report.latitude)
+            longitude_value = float(report.longitude)
+
+            folium.CircleMarker(
+                location=[latitude_value, longitude_value],
+                radius=8,
+                color="#FFFFFF",
+                weight=2,
+                fill=True,
+                fill_color=color,
+                fill_opacity=0.95,
+                tooltip=f"GNSS report: {safe_event} | {timestamp}",
+                popup=folium.Popup(
+                    f"<b>GNSS Report</b><br>"
+                    f"Event: {safe_event}<br>"
+                    f"Timestamp (UTC): {timestamp}<br>"
+                    f"Confidence: {confidence}<br>"
+                    f"Source: {source}<br>"
+                    f"Latitude: {latitude_value:.5f}<br>"
+                    f"Longitude: {longitude_value:.5f}<br><br>"
+                    f"<i>Reported evidence; not independently confirmed.</i>",
+                    max_width=300,
+                ),
+            ).add_to(reports_layer)
+
+        reports_layer.add_to(m)
+
+    # -----------------------------------------------------
+    # DRAWING TOOLS
+    # -----------------------------------------------------
+
+    Draw(
+        export=False,
+        position="topleft",
+        draw_options={
+            "polyline": False,
+            "marker": True,
+            "circle": True,
+            "circlemarker": False,
+            "rectangle": True,
+            "polygon": True,
+        },
+        edit_options={
+            "edit": True,
+            "remove": True,
+        },
+    ).add_to(m)
+
+    # -----------------------------------------------------
+    # MAP CONTROLS
+    # -----------------------------------------------------
+
+    Fullscreen(position="topright").add_to(m)
+
+    MousePosition(
+        position="bottomleft",
+        separator=" | ",
+        prefix="Coordinates:",
+        num_digits=5,
+    ).add_to(m)
+
+    folium.LayerControl(
+        position="topright",
+        collapsed=True,
+    ).add_to(m)
+
+    # -----------------------------------------------------
+    # LOCATION INFORMATION
+    # -----------------------------------------------------
+
+    if st.session_state.investigation_map_search_name:
+
+        st.caption(
+            "Map location: "
+            f"{st.session_state.investigation_map_search_name}"
+        )
+
+    # -----------------------------------------------------
+    # MAP DISPLAY
+    # -----------------------------------------------------
+
+    result = st_folium(
+        m,
+        height=520,
+        use_container_width=True,
+        returned_objects=[
+            "last_active_drawing",
+            "all_drawings",
+        ],
+        key="position_loss_map",
+    )
+
+    # -----------------------------------------------------
+    # RETURN DRAWN AREA
+    # -----------------------------------------------------
+
+    drawing = None
+
+    if result:
+
+        drawing = result.get("last_active_drawing")
+
+        if not drawing:
+
+            drawings = result.get("all_drawings") or []
+
+            if drawings:
+                drawing = drawings[-1]
+
+    if drawing and drawing.get("geometry"):
+
+        return {
+            "geometry": drawing["geometry"],
+            "properties": drawing.get("properties", {}),
+        }
+
+    return None

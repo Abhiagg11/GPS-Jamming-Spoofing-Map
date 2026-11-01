@@ -1,9 +1,11 @@
-
 import json
 import streamlit as st
 import pandas as pd
 
 from modules.map_view import render_investigation_map
+from modules.gnss_reports import load_gnss_reports
+from modules.heatmap import build_hex_cells
+from modules.stanford_data import load_stanford_data
 from modules.airport_lookup import search_airport
 from modules.adsb_provider import (
     search_by_route,
@@ -12,10 +14,6 @@ from modules.adsb_provider import (
     detect_position_gaps,
     ADSBProviderError,
 )
-
-# ---------------------------------------------------------
-# PAGE CONFIGURATION
-# ---------------------------------------------------------
 
 st.set_page_config(
     page_title="GNSS Interference Investigator",
@@ -31,26 +29,20 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-        .stApp {
-            background-color: #0b111b;
-        }
-
+        .stApp { background-color: #0b111b; }
         .block-container {
             max-width: 100%;
             padding: 2rem 0.9rem 0.4rem 0.9rem !important;
         }
-
         [data-testid="stSidebar"] {
             background-color: #111c2a;
             border-right: 1px solid #26384c;
             min-width: 255px;
             max-width: 255px;
         }
-
         [data-testid="stSidebar"] .block-container {
             padding: 0.8rem 0.8rem;
         }
-
         .main-header {
             display: flex;
             align-items: center;
@@ -59,72 +51,56 @@ st.markdown(
             padding-bottom: 10px;
             margin-bottom: 12px;
         }
-
         .main-header h1 {
             color: #f1f5f9;
             font-size: 21px;
             margin: 0;
         }
-
         .subtitle {
             color: #91a4b9;
             font-size: 12px;
             margin-top: 3px;
         }
-
         .sidebar-heading {
             color: #f1f5f9;
             font-size: 18px;
             font-weight: 700;
             margin-bottom: 3px;
         }
-
         .sidebar-hint {
             color: #91a4b9;
             font-size: 12px;
             margin-bottom: 15px;
         }
-
         .map-caption {
             color: #91a4b9;
             font-size: 11px;
             padding-top: 5px;
         }
-
         div[data-testid="stForm"] {
             background: #172333;
             border: 1px solid #26384c;
             border-radius: 9px;
             padding: 12px;
         }
-
         div[data-testid="stTextInput"] input,
         div[data-testid="stDateInput"] input {
             min-height: 2.4rem;
         }
-
         div[data-testid="stVerticalBlock"] > div {
             gap: 0.38rem;
         }
-
         .map-frame {
             background: #111c2a;
             border: 1px solid #26384c;
             border-radius: 10px;
             padding: 8px;
         }
-
         div[data-testid="stAlert"] {
             padding: 0.65rem 0.9rem;
         }
-
-        hr {
-            border-color: #26384c;
-        }
-
-        footer {
-            visibility: hidden;
-        }
+        hr { border-color: #26384c; }
+        footer { visibility: hidden; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -147,6 +123,12 @@ def cached_callsign_search(callsign, flight_date):
 @st.cache_data(ttl=900, show_spinner=False)
 def cached_flight_track(flight_id):
     return get_flight_track(flight_id)
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def cached_stanford_data():
+    # Load every Stanford date currently present in downloaded_json_files.
+    return load_stanford_data("0001-01-01", "9999-12-31")
 
 
 # ---------------------------------------------------------
@@ -191,8 +173,6 @@ with st.sidebar:
     )
 
     st.divider()
-
-    # SEARCH BY ROUTE
 
     if search_method == "By Route":
 
@@ -263,7 +243,6 @@ with st.sidebar:
                             route_date.isoformat(),
                         )
 
-                    # Keep airport coordinates even when ADS-B returns no flights.
                     dep_airport = search_airport(dep).iloc[0]
                     dest_airport = search_airport(dest).iloc[0]
 
@@ -301,8 +280,6 @@ with st.sidebar:
                     st.session_state.search_error = (
                         f"Flight search failed: {exc}"
                     )
-
-    # SEARCH BY FLIGHT NUMBER
 
     else:
 
@@ -369,8 +346,6 @@ with st.sidebar:
                         f"Flight search failed: {exc}"
                     )
 
-    # SEARCH FEEDBACK
-
     if st.session_state.search_error:
         st.error(st.session_state.search_error)
 
@@ -388,8 +363,8 @@ st.markdown(
         <div>
             <h1>🛰️ GNSS Interference Investigator</h1>
             <div class="subtitle">
-                Historical flight routes · ADS-B position gaps ·
-                Potential GNSS interference
+                Global GNSS reports · Historical flight routes ·
+                ADS-B position gaps · Potential GNSS interference
             </div>
         </div>
     </div>
@@ -442,7 +417,7 @@ if search:
         if options:
 
             labels = {
-                flight_label(f): fid
+                flight_label(flight): fid
                 for fid, flight in options.items()
             }
 
@@ -512,12 +487,185 @@ if search:
 
 
 # ---------------------------------------------------------
+# LOAD GNSS REPORTS
+# ---------------------------------------------------------
+
+gnss_reports, gnss_report_errors = load_gnss_reports()
+
+if gnss_report_errors:
+    with st.expander("GNSS report import warnings", expanded=False):
+        for report_error in gnss_report_errors:
+            st.warning(report_error)
+
+
+# ---------------------------------------------------------
+# LOAD STANFORD GPS LAB DATA
+# ---------------------------------------------------------
+
+try:
+    stanford_data = cached_stanford_data()
+except Exception as exc:
+    stanford_data = {"events": [], "jamming_cells": [], "spoofing_cells": []}
+    st.warning(f"Stanford GPS Lab data could not be loaded: {exc}")
+
+with st.expander("Stanford GPS Lab data status", expanded=False):
+    st.write(f"Event locations: {len(stanford_data['events']):,}")
+    st.write(f"Jamming H3 observations: {len(stanford_data['jamming_cells']):,}")
+    st.write(f"Spoofing H3 observations: {len(stanford_data['spoofing_cells']):,}")
+    st.caption(
+        "Source: Stanford GPS Lab (rfi.stanford.edu). Data licensed CC BY-NC 4.0. "
+        "Jamming cells represent aircraft navigation-quality observations, "
+        "not measured RF strength or confirmed interference coverage. "
+        "Spoofing cells are grouped by Stanford event ID."
+    )
+
+
+# ---------------------------------------------------------
+# GLOBAL GNSS HEATMAP FILTERS
+# ---------------------------------------------------------
+
+st.markdown("### Global GNSS Interference Map")
+
+st.caption(
+    "Hexagon colour represents the number of reports in each cell — "
+    "not measured RF interference strength."
+)
+
+filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(
+    [1.2, 1.1, 1.5, 1.0],
+    gap="small",
+)
+
+with filter_col1:
+    selected_report_date = st.date_input(
+        "Report date (UTC)",
+        value=pd.Timestamp.now(tz="UTC").date(),
+        key="heatmap_report_date",
+    )
+
+with filter_col2:
+    selected_window = st.selectbox(
+        "Time window",
+        ["6 hours", "24 hours"],
+        index=1,
+        key="heatmap_time_window",
+    )
+
+with filter_col3:
+    event_type_options = [
+        "jamming",
+        "spoofing",
+        "interference",
+        "unknown",
+    ]
+
+    selected_event_types = st.multiselect(
+        "Event types",
+        event_type_options,
+        default=event_type_options,
+        key="heatmap_event_types",
+    )
+
+with filter_col4:
+    resolution_options = {
+        "3 — broad global view": 3,
+        "4 — regional view": 4,
+        "5 — local detail": 5,
+        "6 — high detail": 6,
+    }
+    selected_resolution_label = st.selectbox(
+        "H3 resolution",
+        list(resolution_options.keys()),
+        index=2,
+        key="heatmap_h3_resolution",
+    )
+    selected_resolution = resolution_options[selected_resolution_label]
+
+
+# ---------------------------------------------------------
+# FILTER REPORT DATA
+# ---------------------------------------------------------
+
+window_hours = 6 if selected_window == "6 hours" else 24
+
+now_utc = pd.Timestamp.now(tz="UTC")
+selected_day_start = pd.Timestamp(selected_report_date, tz="UTC")
+selected_day_end = selected_day_start + pd.Timedelta(days=1)
+
+# For today's date, do not include future reports.
+if selected_report_date == now_utc.date():
+    window_end = min(selected_day_end, now_utc)
+else:
+    window_end = selected_day_end
+
+window_start = max(
+    selected_day_start,
+    window_end - pd.Timedelta(hours=window_hours),
+)
+
+real_reports = gnss_reports.copy()
+
+if not real_reports.empty:
+
+    is_synthetic = real_reports["source"].astype(str).str.contains(
+        "synthetic|demo",
+        case=False,
+        na=False,
+    )
+
+    real_reports = real_reports[~is_synthetic]
+
+    real_reports = real_reports[
+        real_reports["timestamp"].ge(window_start)
+        & real_reports["timestamp"].lt(window_end)
+        & real_reports["event_type"]
+            .astype(str)
+            .str.lower()
+            .isin(selected_event_types)
+    ]
+
+
+# ---------------------------------------------------------
+# BUILD HEATMAP CELLS
+# ---------------------------------------------------------
+
+try:
+
+    heatmap_cells = build_hex_cells(
+        real_reports,
+        resolution=selected_resolution,
+    )
+
+except (ValueError, TypeError) as exc:
+
+    heatmap_cells = []
+    st.error(f"Could not build GNSS heatmap cells: {exc}")
+
+
+if heatmap_cells:
+
+    st.caption(
+        f"{len(real_reports)} real report(s) · "
+        f"{len(heatmap_cells)} populated cell(s) · "
+        f"{window_start:%Y-%m-%d %H:%M} to "
+        f"{window_end:%Y-%m-%d %H:%M} UTC"
+    )
+
+else:
+
+    st.info(
+        "No real GNSS reports match these filters. Empty areas indicate "
+        "no available report data, not confirmed absence of interference."
+    )
+
+
+# ---------------------------------------------------------
 # INVESTIGATION MAP
 # ---------------------------------------------------------
 
-st.markdown("### Investigation Map")
+st.markdown("### Flight Investigation")
 
-map_lat, map_lon = 8.5, 5.3
+map_lat, map_lon = 15.0, 0.0
 map_result = None
 
 with st.container(border=True):
@@ -531,8 +679,14 @@ with st.container(border=True):
         )
 
         if estimated_route_points and track.empty:
-            map_lat = sum(p["latitude"] for p in estimated_route_points) / 2
-            map_lon = sum(p["longitude"] for p in estimated_route_points) / 2
+
+            map_lat = sum(
+                p["latitude"] for p in estimated_route_points
+            ) / 2
+
+            map_lon = sum(
+                p["longitude"] for p in estimated_route_points
+            ) / 2
 
         map_result = render_investigation_map(
             map_lat,
@@ -540,6 +694,9 @@ with st.container(border=True):
             flight_route_points=estimated_route_points,
             flight_track=track,
             position_gaps=gaps,
+            gnss_reports=gnss_reports,
+            heatmap_cells=heatmap_cells,
+            stanford_data=stanford_data,
         )
 
     except Exception as exc:

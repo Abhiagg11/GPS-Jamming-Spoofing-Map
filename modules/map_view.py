@@ -2,6 +2,7 @@ import requests
 import streamlit as st
 import folium
 import pandas as pd
+from html import escape
 
 from branca.element import Element
 from folium.plugins import Draw, Fullscreen, MousePosition
@@ -150,11 +151,14 @@ def parse_route_points(route_text):
 # =========================================================
 
 def render_investigation_map(
-    latitude=9.0,
-    longitude=7.0,
+    latitude=15.0,
+    longitude=0.0,
     flight_route_points=None,
     flight_track=None,
     position_gaps=None,
+    gnss_reports=None,
+    heatmap_cells=None,
+    stanford_data=None,
 ):
 
     # -----------------------------------------------------
@@ -166,14 +170,14 @@ def render_investigation_map(
         longitude = float(longitude)
 
         if not -90 <= latitude <= 90:
-            latitude = 9.0
+            latitude = 15.0
 
         if not -180 <= longitude <= 180:
-            longitude = 7.0
+            longitude = 0.0
 
     except (TypeError, ValueError):
-        latitude = 9.0
-        longitude = 7.0
+        latitude = 15.0
+        longitude = 0.0
 
     # -----------------------------------------------------
     # SESSION STATE
@@ -786,6 +790,255 @@ def render_investigation_map(
             ).add_to(gap_layer)
 
         gap_layer.add_to(m)
+
+    # -----------------------------------------------------
+    # GLOBAL GNSS REPORT-DENSITY HEX CELLS
+    # -----------------------------------------------------
+
+    if heatmap_cells:
+        heatmap_layer = folium.FeatureGroup(
+            name="GNSS Report Density (Hex Cells)",
+            show=True,
+        )
+
+        max_count = max(cell.get("report_count", 0) for cell in heatmap_cells) or 1
+
+        def density_colour(count):
+            ratio = count / max_count
+            if ratio <= 0.25:
+                return "#38BDF8"
+            if ratio <= 0.50:
+                return "#2DD4BF"
+            if ratio <= 0.75:
+                return "#FACC15"
+            return "#F97316"
+
+        for cell in heatmap_cells:
+            count = int(cell.get("report_count", 0))
+            colour = density_colour(count)
+            event_types = escape(", ".join(cell.get("event_types", [])) or "Unknown")
+            sources = escape(", ".join(cell.get("sources", [])) or "Unknown")
+            timestamps = escape(", ".join(cell.get("timestamps", [])) or "Unknown")
+
+            popup_html = (
+                f"<b>GNSS Report Cell</b><br>"
+                f"Reports: {count}<br>"
+                f"Event types: {event_types}<br>"
+                f"Sources: {sources}<br>"
+                f"Report timestamps (UTC): {timestamps}<br><br>"
+                f"<i>Colour indicates report count, not measured RF strength.</i>"
+            )
+
+            folium.Polygon(
+                locations=cell["boundary"],
+                color=colour,
+                weight=1,
+                opacity=0.9,
+                fill=True,
+                fill_color=colour,
+                fill_opacity=0.45,
+                tooltip=f"{count} GNSS report(s) in cell",
+                popup=folium.Popup(popup_html, max_width=320),
+            ).add_to(heatmap_layer)
+
+        heatmap_layer.add_to(m)
+
+    # -----------------------------------------------------
+    # STANFORD GPS LAB DATA — DISTINCT EVIDENCE LAYERS
+    # -----------------------------------------------------
+
+    stanford_data = stanford_data or {}
+    stanford_events = stanford_data.get("events", [])
+    stanford_jamming_cells = stanford_data.get("jamming_cells", [])
+    stanford_spoofing_cells = stanford_data.get("spoofing_cells", [])
+
+    # Event points are reported event locations, not coverage boundaries.
+    if stanford_events:
+        for event_type, color, layer_name in [
+            ("jamming", "#F97316", "Stanford Jamming Events"),
+            ("spoofing", "#A855F7", "Stanford Spoofing Events"),
+        ]:
+            event_layer = folium.FeatureGroup(name=layer_name, show=False)
+
+            for event in stanford_events:
+                if event.get("event_type") != event_type:
+                    continue
+
+                event_id = escape(str(event.get("event_id", "Unknown")))
+                event_date = escape(str(event.get("date", "Unknown")))
+                affected = event.get("affected_flights")
+                affected_text = (
+                    escape(str(affected)) if affected is not None else "Not provided"
+                )
+                lat = float(event["latitude"])
+                lon = float(event["longitude"])
+
+                folium.CircleMarker(
+                    location=[lat, lon],
+                    radius=6,
+                    color="#FFFFFF",
+                    weight=1.5,
+                    fill=True,
+                    fill_color=color,
+                    fill_opacity=0.9,
+                    tooltip=f"Stanford {event_type.title()} event · {event_date}",
+                    popup=folium.Popup(
+                        f"<b>Stanford GPS Lab — {event_type.title()} Event</b><br>"
+                        f"Event ID: {event_id}<br>"
+                        f"Date (UTC): {event_date}<br>"
+                        f"Affected flights (reported): {affected_text}<br>"
+                        f"Latitude: {lat:.5f}<br>Longitude: {lon:.5f}<br><br>"
+                        "<i>Event location only; it does not define an affected-area boundary.</i>",
+                        max_width=320,
+                    ),
+                ).add_to(event_layer)
+
+            event_layer.add_to(m)
+
+    # Jamming heatmap cells describe low navigation-quality observations.
+    # Render only non-zero cells and cap the displayed set for browser performance.
+    active_jamming = [
+        cell for cell in stanford_jamming_cells
+        if int(cell.get("low_quality_count", 0) or 0) > 0
+        and int(cell.get("total_aircraft_count", 0) or 0) > 0
+    ]
+    active_jamming.sort(
+        key=lambda cell: (
+            int(cell.get("low_quality_count", 0) or 0)
+            / max(int(cell.get("total_aircraft_count", 0) or 0), 1),
+            int(cell.get("low_quality_count", 0) or 0),
+        ),
+        reverse=True,
+    )
+    jamming_display_limit = 2500
+    displayed_jamming = active_jamming[:jamming_display_limit]
+
+    if displayed_jamming:
+        stanford_jamming_layer = folium.FeatureGroup(
+            name=f"Stanford Navigation-Quality Cells ({len(displayed_jamming):,})",
+            show=True,
+        )
+
+        for cell in displayed_jamming:
+            low_count = int(cell.get("low_quality_count", 0) or 0)
+            total_count = int(cell.get("total_aircraft_count", 0) or 0)
+            percentage = 100 * low_count / total_count if total_count else 0
+            colour = "#DC2626" if percentage >= 50 else "#F97316"
+            date_text = escape(str(cell.get("date", "Unknown")))
+            cell_id = escape(str(cell.get("cell_id", "Unknown")))
+
+            folium.Polygon(
+                locations=cell["boundary"],
+                color=colour,
+                weight=0.7,
+                opacity=0.8,
+                fill=True,
+                fill_color=colour,
+                fill_opacity=0.35,
+                tooltip=f"Stanford navigation-quality observations: {low_count}/{total_count} ({percentage:.1f}%)",
+                popup=folium.Popup(
+                    "<b>Stanford GPS Lab — Daily Navigation-Quality Cell</b><br>"
+                    f"Date (UTC): {date_text}<br>"
+                    f"H3 cell: {cell_id}<br>"
+                    f"Low-quality observations: {low_count}<br>"
+                    f"Total aircraft observations: {total_count}<br>"
+                    f"Low-quality share: {percentage:.1f}%<br><br>"
+                    "<i>These are navigation-quality observations, not measured RF strength "
+                    "or confirmed jamming coverage.</i>",
+                    max_width=340,
+                ),
+            ).add_to(stanford_jamming_layer)
+
+        stanford_jamming_layer.add_to(m)
+
+    # Stanford spoofing H3 cells are kept separate from jamming cells.
+    if stanford_spoofing_cells:
+        stanford_spoofing_layer = folium.FeatureGroup(
+            name=f"Stanford Spoofing H3 Cells ({len(stanford_spoofing_cells):,})",
+            show=False,
+        )
+
+        for cell in stanford_spoofing_cells:
+            spoofed_count = int(cell.get("spoofed_flight_count", 0) or 0)
+            seen_count = int(cell.get("seen_aircraft_count", 0) or 0)
+            event_id = escape(str(cell.get("event_id", "Unknown")))
+            date_text = escape(str(cell.get("date", "Unknown")))
+            cell_id = escape(str(cell.get("cell_id", "Unknown")))
+
+            folium.Polygon(
+                locations=cell["boundary"],
+                color="#A855F7",
+                weight=0.8,
+                opacity=0.85,
+                fill=True,
+                fill_color="#A855F7",
+                fill_opacity=0.35,
+                tooltip=f"Stanford spoofing cell · {spoofed_count} spoofed flight(s)",
+                popup=folium.Popup(
+                    "<b>Stanford GPS Lab — Spoofing H3 Cell</b><br>"
+                    f"Date (UTC): {date_text}<br>"
+                    f"Event: {event_id}<br>"
+                    f"H3 cell: {cell_id}<br>"
+                    f"Spoofed flights: {spoofed_count}<br>"
+                    f"Seen aircraft: {seen_count}<br><br>"
+                    "<i>Cell is associated with a Stanford spoofing event; "
+                    "it is not a precise RF boundary.</i>",
+                    max_width=340,
+                ),
+            ).add_to(stanford_spoofing_layer)
+
+        stanford_spoofing_layer.add_to(m)
+
+    # -----------------------------------------------------
+    # GNSS INTERFERENCE REPORTS
+    # -----------------------------------------------------
+
+    if gnss_reports is not None and not gnss_reports.empty:
+        reports_layer = folium.FeatureGroup(
+            name="GNSS Interference Reports",
+            show=True,
+        )
+
+        event_colors = {
+            "jamming": "#EF4444",
+            "spoofing": "#A855F7",
+            "interference": "#F97316",
+            "unknown": "#38BDF8",
+        }
+
+        for report in gnss_reports.itertuples(index=False):
+            event_type = str(getattr(report, "event_type", "unknown")).lower()
+            color = event_colors.get(event_type, "#38BDF8")
+            timestamp = escape(str(getattr(report, "timestamp", "Unknown time")))
+            confidence = escape(str(getattr(report, "confidence", "Unknown")))
+            source = escape(str(getattr(report, "source", "Unknown")))
+            safe_event = escape(event_type.title())
+            latitude_value = float(report.latitude)
+            longitude_value = float(report.longitude)
+
+            folium.CircleMarker(
+                location=[latitude_value, longitude_value],
+                radius=8,
+                color="#FFFFFF",
+                weight=2,
+                fill=True,
+                fill_color=color,
+                fill_opacity=0.95,
+                tooltip=f"GNSS report: {safe_event} | {timestamp}",
+                popup=folium.Popup(
+                    f"<b>GNSS Report</b><br>"
+                    f"Event: {safe_event}<br>"
+                    f"Timestamp (UTC): {timestamp}<br>"
+                    f"Confidence: {confidence}<br>"
+                    f"Source: {source}<br>"
+                    f"Latitude: {latitude_value:.5f}<br>"
+                    f"Longitude: {longitude_value:.5f}<br><br>"
+                    f"<i>Reported evidence; not independently confirmed.</i>",
+                    max_width=300,
+                ),
+            ).add_to(reports_layer)
+
+        reports_layer.add_to(m)
 
     # -----------------------------------------------------
     # DRAWING TOOLS
