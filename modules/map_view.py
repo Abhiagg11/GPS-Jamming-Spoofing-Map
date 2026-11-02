@@ -618,6 +618,54 @@ def render_investigation_map(
         ).add_to(m)
 
     # -----------------------------------------------------
+    # SELECTED AIRPORT MARKER
+    # -----------------------------------------------------
+
+    selected_airport = st.session_state.get("selected_airport")
+
+    if selected_airport:
+
+        airport_name = escape(
+            str(selected_airport.get("name") or "Selected Airport")
+        )
+        iata = escape(str(selected_airport.get("iata") or "N/A"))
+        icao = escape(str(selected_airport.get("icao") or "N/A"))
+        city = escape(str(selected_airport.get("city") or "N/A"))
+        country = escape(str(selected_airport.get("country") or "N/A"))
+
+        airport_lat = float(selected_airport["latitude"])
+        airport_lon = float(selected_airport["longitude"])
+
+        airport_layer = folium.FeatureGroup(
+            name="Selected Airport",
+            show=True,
+        )
+
+        folium.Marker(
+            location=[airport_lat, airport_lon],
+            tooltip=f"Airport: {airport_name} ({iata})",
+            popup=folium.Popup(
+                f"""
+                <b>{airport_name}</b><br>
+                IATA: {iata}<br>
+                ICAO: {icao}<br>
+                City: {city}<br>
+                Country: {country}<br>
+                Latitude: {airport_lat:.5f}<br>
+                Longitude: {airport_lon:.5f}
+                """,
+                max_width=300,
+            ),
+            icon=folium.Icon(
+                color="blue",
+                icon="plane",
+                prefix="fa",
+            ),
+        ).add_to(airport_layer)
+
+        airport_layer.add_to(m)
+
+    # -----------------------------------------------------
     # FLIGHT ROUTE LAYER
     # -----------------------------------------------------
 
@@ -1121,7 +1169,7 @@ def render_investigation_map(
 
     result = st_folium(
         m,
-        height=760,
+        height=1000,
         use_container_width=True,
         returned_objects=[
             "last_active_drawing",

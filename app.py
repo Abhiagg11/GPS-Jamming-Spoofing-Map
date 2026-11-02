@@ -33,6 +33,12 @@ st.markdown(
             background-color: #0b111b;
         }
 
+        /* Hide Streamlit's small page-decoration strip above the header. */
+        div[data-testid="stDecoration"] {
+            display: none !important;
+        div[data-testid="stStatusWidget"] {
+    display: none !important;
+        }
         .block-container {
             max-width: 100%;
             padding: 0.35rem 0.55rem 0.1rem 0.55rem !important;
@@ -201,6 +207,143 @@ if "search_error" not in st.session_state:
 if "selected_flight_id" not in st.session_state:
     st.session_state.selected_flight_id = None
 
+if "airport_search_results" not in st.session_state:
+    st.session_state.airport_search_results = []
+
+if "selected_airport" not in st.session_state:
+    st.session_state.selected_airport = None
+
+if "airport_search_error" not in st.session_state:
+    st.session_state.airport_search_error = None
+
+# ---------------------------------------------------------
+# SIDEBAR — AIRPORT SEARCH
+# ---------------------------------------------------------
+
+with st.sidebar.expander("✈️ Airport Search", expanded=True):
+
+    st.markdown("**Find an Airport**")
+    st.caption("Search worldwide using an IATA or ICAO airport code.")
+
+    with st.form("airport_lookup_form"):
+
+        airport_code = st.text_input(
+            "Airport Code",
+            placeholder="DEL or VIDP",
+            max_chars=4,
+        )
+
+        airport_submit = st.form_submit_button(
+            "Search Airport",
+            use_container_width=True,
+            type="primary",
+        )
+
+    if airport_submit:
+
+        code = airport_code.strip().upper()
+
+        st.session_state.airport_search_results = []
+        st.session_state.selected_airport = None
+        st.session_state.airport_search_error = None
+
+        if not code:
+            st.session_state.airport_search_error = (
+                "Enter an IATA or ICAO airport code."
+            )
+
+        else:
+            try:
+                results = search_airport(code)
+
+                if results.empty:
+                    st.session_state.airport_search_error = (
+                        f"No airport found for '{code}'."
+                    )
+                else:
+                    st.session_state.airport_search_results = (
+                        results.to_dict("records")
+                    )
+
+            except Exception as exc:
+                st.session_state.airport_search_error = (
+                    f"Airport search failed: {exc}"
+                )
+
+    if st.session_state.airport_search_error:
+        st.error(st.session_state.airport_search_error)
+
+    airport_results = st.session_state.airport_search_results
+
+    if airport_results:
+
+        airport_options = {}
+
+        for airport in airport_results:
+
+            iata = airport.get("iata_code") or "N/A"
+            icao = airport.get("icao_code") or "N/A"
+            name = airport.get("name") or "Unknown Airport"
+            city = airport.get("municipality") or ""
+
+            label = f"{name} ({iata} / {icao}) — {city}"
+            airport_options[label] = airport
+
+        selected_airport_label = st.selectbox(
+            "Select Airport",
+            list(airport_options.keys()),
+            key="airport_result_selection",
+        )
+
+        airport = airport_options[selected_airport_label]
+
+        if st.button(
+            "📍 Focus Map on Airport",
+            use_container_width=True,
+            type="primary",
+            key="focus_selected_airport",
+        ):
+
+            st.session_state.selected_airport = {
+                "name": airport.get("name"),
+                "iata": airport.get("iata_code"),
+                "icao": airport.get("icao_code"),
+                "city": airport.get("municipality"),
+                "country": airport.get("iso_country"),
+                "latitude": float(airport.get("latitude_deg")),
+                "longitude": float(airport.get("longitude_deg")),
+                "type": airport.get("type"),
+            }
+
+            st.session_state.investigation_map_center = [
+                float(airport["latitude_deg"]),
+                float(airport["longitude_deg"]),
+            ]
+
+            st.session_state.investigation_map_zoom = 10
+
+            st.session_state.investigation_map_search_name = (
+                airport.get("name") or "Selected Airport"
+            )
+
+        selected = st.session_state.selected_airport
+
+        if selected:
+
+            st.divider()
+            st.markdown("**Airport Details**")
+
+            st.write(f"**Name:** {selected['name']}")
+            st.write(f"**IATA:** {selected['iata'] or 'N/A'}")
+            st.write(f"**ICAO:** {selected['icao'] or 'N/A'}")
+            st.write(f"**City:** {selected['city'] or 'N/A'}")
+            st.write(f"**Country:** {selected['country'] or 'N/A'}")
+            st.write(f"**Type:** {selected['type'] or 'N/A'}")
+
+            st.caption(
+                f"Coordinates: {selected['latitude']:.5f}, "
+                f"{selected['longitude']:.5f}"
+            )
 
 # ---------------------------------------------------------
 # SIDEBAR — FLIGHT SEARCH
@@ -748,6 +891,13 @@ try:
         map_lon = sum(
             p["longitude"] for p in estimated_route_points
         ) / 2
+
+        # Centre the map on the selected airport when one is chosen.
+    selected_airport = st.session_state.get("selected_airport")
+
+    if selected_airport:
+        map_lat = selected_airport["latitude"]
+        map_lon = selected_airport["longitude"]
 
     map_result = render_investigation_map(
         map_lat,
