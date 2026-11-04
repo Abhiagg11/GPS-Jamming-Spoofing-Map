@@ -1,0 +1,1836 @@
+{
+  "license": "CC BY-NC 4.0",
+  "license_url": "https://creativecommons.org/licenses/by-nc/4.0/",
+  "attribution": "Data from rfi.stanford.edu, Stanford GPS Laboratory",
+  "data": {
+    "event_153": [
+      {
+        "h3Index": "841f5adffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "841e2dbffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "841f533ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 4
+      },
+      {
+        "h3Index": "841f48dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      }
+    ],
+    "event_225": {
+      "h3Index": "841eebbffffffff",
+      "spoofedFlightCount": 1,
+      "seenAircraftCount": 19
+    },
+    "event_263": [
+      {
+        "h3Index": "8464163ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "8464123ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 1
+      },
+      {
+        "h3Index": "8464121ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 4
+      },
+      {
+        "h3Index": "8464ac9ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "8464125ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "8464a53ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 7
+      },
+      {
+        "h3Index": "8464a51ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 6
+      },
+      {
+        "h3Index": "8464ac1ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "8464acdffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 25
+      },
+      {
+        "h3Index": "8464a1bffffffff",
+        "spoofedFlightCount": 3,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "8464a19ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 10
+      },
+      {
+        "h3Index": "8464a57ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 14
+      },
+      {
+        "h3Index": "8464a09ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 20
+      },
+      {
+        "h3Index": "8464a47ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 10
+      },
+      {
+        "h3Index": "8464ac5ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 4
+      },
+      {
+        "h3Index": "8464a13ffffffff",
+        "spoofedFlightCount": 4,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "8464a11ffffffff",
+        "spoofedFlightCount": 5,
+        "seenAircraftCount": 8
+      },
+      {
+        "h3Index": "8464a1dffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 12
+      },
+      {
+        "h3Index": "8464a0bffffffff",
+        "spoofedFlightCount": 4,
+        "seenAircraftCount": 17
+      },
+      {
+        "h3Index": "8464a17ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 4
+      },
+      {
+        "h3Index": "8464a15ffffffff",
+        "spoofedFlightCount": 3,
+        "seenAircraftCount": 6
+      },
+      {
+        "h3Index": "8464a03ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 8
+      },
+      {
+        "h3Index": "8464aedffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 2
+      },
+      {
+        "h3Index": "8464a3bffffffff",
+        "spoofedFlightCount": 3,
+        "seenAircraftCount": 6
+      },
+      {
+        "h3Index": "8464a39ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 5
+      }
+    ],
+    "event_265": [
+      {
+        "h3Index": "841ecdbffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 12
+      },
+      {
+        "h3Index": "842d251ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "841eed7ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 2
+      },
+      {
+        "h3Index": "841eed5ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "841eeddffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 2
+      }
+    ],
+    "event_270": [
+      {
+        "h3Index": "842d337ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "841ec99ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 18
+      },
+      {
+        "h3Index": "841ecdbffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 12
+      },
+      {
+        "h3Index": "842d059ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "842d24dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 18
+      },
+      {
+        "h3Index": "841ee8bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 9
+      },
+      {
+        "h3Index": "841ee9dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 7
+      },
+      {
+        "h3Index": "841eed7ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 2
+      }
+    ],
+    "event_311": {
+      "h3Index": "8443a0bffffffff",
+      "spoofedFlightCount": 1,
+      "seenAircraftCount": 20
+    },
+    "event_314": [
+      {
+        "h3Index": "8443a1dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 14
+      },
+      {
+        "h3Index": "8443a57ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 12
+      },
+      {
+        "h3Index": "8443a51ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 24
+      },
+      {
+        "h3Index": "8443a1bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 52
+      },
+      {
+        "h3Index": "8443acdffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 58
+      },
+      {
+        "h3Index": "8443a53ffffffff",
+        "spoofedFlightCount": 3,
+        "seenAircraftCount": 19
+      },
+      {
+        "h3Index": "8443125ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 27
+      },
+      {
+        "h3Index": "8443a5bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 20
+      },
+      {
+        "h3Index": "8443ac9ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8443165ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 11
+      },
+      {
+        "h3Index": "844312dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 21
+      },
+      {
+        "h3Index": "8443121ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 7
+      },
+      {
+        "h3Index": "8443167ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 12
+      },
+      {
+        "h3Index": "8443123ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "844316dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 9
+      },
+      {
+        "h3Index": "844312bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "84536d3ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "8443163ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8443105ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "844316bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8443147ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      }
+    ],
+    "event_315": [
+      {
+        "h3Index": "8443a0bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 20
+      },
+      {
+        "h3Index": "8443a55ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 12
+      },
+      {
+        "h3Index": "8443a1bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 52
+      },
+      {
+        "h3Index": "8443125ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 27
+      }
+    ],
+    "event_318": [
+      {
+        "h3Index": "84536b5ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 7
+      },
+      {
+        "h3Index": "8443a13ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 30
+      },
+      {
+        "h3Index": "8443ac5ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 60
+      },
+      {
+        "h3Index": "8443acdffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 58
+      },
+      {
+        "h3Index": "8443ac1ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 26
+      },
+      {
+        "h3Index": "8443127ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 37
+      }
+    ],
+    "event_321": {
+      "h3Index": "8443a0bffffffff",
+      "spoofedFlightCount": 1,
+      "seenAircraftCount": 20
+    },
+    "event_322": [
+      {
+        "h3Index": "844312dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 21
+      },
+      {
+        "h3Index": "8443167ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 12
+      },
+      {
+        "h3Index": "8443129ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8443163ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      }
+    ],
+    "event_323": [
+      {
+        "h3Index": "844312dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 21
+      },
+      {
+        "h3Index": "8443167ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 12
+      }
+    ],
+    "event_326": [
+      {
+        "h3Index": "8443a0bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 20
+      },
+      {
+        "h3Index": "84536b9ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 19
+      },
+      {
+        "h3Index": "8453683ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 10
+      },
+      {
+        "h3Index": "845368bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 11
+      },
+      {
+        "h3Index": "84536d5ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 23
+      }
+    ],
+    "event_327": [
+      {
+        "h3Index": "8443a05ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 6
+      },
+      {
+        "h3Index": "8443109ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      }
+    ],
+    "event_328": {
+      "h3Index": "8443ac5ffffffff",
+      "spoofedFlightCount": 1,
+      "seenAircraftCount": 60
+    },
+    "event_329": [
+      {
+        "h3Index": "8443a0bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 20
+      },
+      {
+        "h3Index": "8443a17ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "8443ae9ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 11
+      },
+      {
+        "h3Index": "8443a55ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 12
+      },
+      {
+        "h3Index": "8443aebffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 30
+      },
+      {
+        "h3Index": "8443a8dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 46
+      },
+      {
+        "h3Index": "8443a57ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 12
+      },
+      {
+        "h3Index": "8443a19ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 22
+      },
+      {
+        "h3Index": "8443a13ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 30
+      },
+      {
+        "h3Index": "8443a81ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 30
+      },
+      {
+        "h3Index": "8443a83ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 8
+      },
+      {
+        "h3Index": "8443a95ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 14
+      },
+      {
+        "h3Index": "8443125ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 27
+      }
+    ],
+    "event_331": [
+      {
+        "h3Index": "84534d3ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 25
+      },
+      {
+        "h3Index": "84534d1ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 1
+      },
+      {
+        "h3Index": "8443a6bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 1
+      },
+      {
+        "h3Index": "8443a0dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8443a09ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 24
+      },
+      {
+        "h3Index": "8443a0bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 20
+      },
+      {
+        "h3Index": "8443a13ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 30
+      },
+      {
+        "h3Index": "8443a59ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 24
+      },
+      {
+        "h3Index": "8443ac9ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8443ad7ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "845369bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 7
+      },
+      {
+        "h3Index": "8443121ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 7
+      },
+      {
+        "h3Index": "8443acbffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 2
+      },
+      {
+        "h3Index": "8443167ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 12
+      },
+      {
+        "h3Index": "8443123ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "845368bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 11
+      },
+      {
+        "h3Index": "84536d7ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 13
+      },
+      {
+        "h3Index": "844316dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 9
+      },
+      {
+        "h3Index": "8443161ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8453633ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 16
+      },
+      {
+        "h3Index": "8453689ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 30
+      },
+      {
+        "h3Index": "84536d3ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "84536edffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 19
+      }
+    ],
+    "event_334": [
+      {
+        "h3Index": "8443a11ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 15
+      },
+      {
+        "h3Index": "8443a8bffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 0
+      }
+    ],
+    "event_335": [
+      {
+        "h3Index": "8443a17ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "8443ae9ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 11
+      },
+      {
+        "h3Index": "8443ac3ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 5
+      },
+      {
+        "h3Index": "8443ad5ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 0
+      }
+    ],
+    "event_340": [
+      {
+        "h3Index": "8443855ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 4
+      },
+      {
+        "h3Index": "8443857ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 15
+      },
+      {
+        "h3Index": "8443819ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 17
+      },
+      {
+        "h3Index": "8443851ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 14
+      },
+      {
+        "h3Index": "8443853ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 19
+      },
+      {
+        "h3Index": "8443859ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 16
+      },
+      {
+        "h3Index": "844385bffffffff",
+        "spoofedFlightCount": 3,
+        "seenAircraftCount": 13
+      },
+      {
+        "h3Index": "8443a69ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8443a6bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 1
+      },
+      {
+        "h3Index": "8443a07ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 7
+      },
+      {
+        "h3Index": "8443a33ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 28
+      },
+      {
+        "h3Index": "8443ae5ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 23
+      },
+      {
+        "h3Index": "8443a0dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8443a3bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 23
+      },
+      {
+        "h3Index": "8443ae1ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 17
+      },
+      {
+        "h3Index": "8443ae9ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 11
+      },
+      {
+        "h3Index": "8443ac5ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 60
+      },
+      {
+        "h3Index": "8443acdffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 58
+      },
+      {
+        "h3Index": "8443127ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 37
+      },
+      {
+        "h3Index": "8443123ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "844312bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "844302dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      }
+    ],
+    "event_341": [
+      {
+        "h3Index": "8443a3bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 23
+      },
+      {
+        "h3Index": "8443a55ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 12
+      },
+      {
+        "h3Index": "8443a11ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 15
+      },
+      {
+        "h3Index": "8443a13ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 30
+      },
+      {
+        "h3Index": "8443ac9ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "844312dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 21
+      },
+      {
+        "h3Index": "8443167ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 12
+      },
+      {
+        "h3Index": "8443123ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "844313dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8443107ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8443103ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "844310bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8443157ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8443151ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8443159ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8443025ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "844333dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "844302dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "844330dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8443339ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8443067ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8443315ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8443317ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 0
+      }
+    ],
+    "event_346": [
+      {
+        "h3Index": "841122bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8411223ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8411235ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "841104bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8411055ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      }
+    ],
+    "event_354": [
+      {
+        "h3Index": "841f623ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 2
+      },
+      {
+        "h3Index": "841f63dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "841f62bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 4
+      },
+      {
+        "h3Index": "841f60dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 2
+      }
+    ],
+    "event_355": [
+      {
+        "h3Index": "8443b39ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "8443b03ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 4
+      },
+      {
+        "h3Index": "8443b1dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 7
+      },
+      {
+        "h3Index": "8443b4bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "8443b57ffffffff",
+        "spoofedFlightCount": 3,
+        "seenAircraftCount": 8
+      },
+      {
+        "h3Index": "8443b19ffffffff",
+        "spoofedFlightCount": 3,
+        "seenAircraftCount": 17
+      },
+      {
+        "h3Index": "8443b1bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 10
+      },
+      {
+        "h3Index": "8443b51ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 14
+      },
+      {
+        "h3Index": "8443b53ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 6
+      },
+      {
+        "h3Index": "844384dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 8
+      },
+      {
+        "h3Index": "8443b59ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      }
+    ],
+    "event_370": [
+      {
+        "h3Index": "841f61dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 1
+      },
+      {
+        "h3Index": "8411367ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8411369ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8411361ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 1
+      },
+      {
+        "h3Index": "841f65bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 1
+      },
+      {
+        "h3Index": "841f659ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 5
+      },
+      {
+        "h3Index": "84089a7ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 2
+      },
+      {
+        "h3Index": "8411349ffffffff",
+        "spoofedFlightCount": 3,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "84089b5ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 1
+      },
+      {
+        "h3Index": "841134bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 2
+      },
+      {
+        "h3Index": "84089bdffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 2
+      },
+      {
+        "h3Index": "8408983ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 5
+      },
+      {
+        "h3Index": "8411239ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "841123bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      }
+    ],
+    "event_386": [
+      {
+        "h3Index": "842d15dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "841eeb1ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 11
+      },
+      {
+        "h3Index": "841eebdffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 11
+      }
+    ],
+    "event_387": [
+      {
+        "h3Index": "842d357ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 7
+      },
+      {
+        "h3Index": "842d35bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 4
+      }
+    ],
+    "event_398": [
+      {
+        "h3Index": "842d249ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 16
+      },
+      {
+        "h3Index": "842d20bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "841ee97ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 7
+      }
+    ],
+    "event_403": [
+      {
+        "h3Index": "8410f29ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 2
+      },
+      {
+        "h3Index": "8410f63ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      }
+    ],
+    "event_440": [
+      {
+        "h3Index": "842d19bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 9
+      },
+      {
+        "h3Index": "842c247ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 6
+      },
+      {
+        "h3Index": "842c209ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 6
+      },
+      {
+        "h3Index": "842c243ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 5
+      }
+    ],
+    "event_920": [
+      {
+        "h3Index": "843dae1ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 9
+      },
+      {
+        "h3Index": "843da51ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 8
+      },
+      {
+        "h3Index": "843da53ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 9
+      },
+      {
+        "h3Index": "843da59ffffffff",
+        "spoofedFlightCount": 3,
+        "seenAircraftCount": 5
+      },
+      {
+        "h3Index": "84424b1ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "843d165ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "84424b9ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "843d16dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "8442481ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8442483ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8442497ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 6
+      },
+      {
+        "h3Index": "8442489ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 6
+      },
+      {
+        "h3Index": "844248bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 1
+      },
+      {
+        "h3Index": "8442491ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 6
+      },
+      {
+        "h3Index": "8442499ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 10
+      },
+      {
+        "h3Index": "844249bffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 4
+      },
+      {
+        "h3Index": "843d14dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "843d143ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "843d325ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 1
+      },
+      {
+        "h3Index": "843d15dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      }
+    ],
+    "event_923": [
+      {
+        "h3Index": "844386bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 9
+      },
+      {
+        "h3Index": "8443b13ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 8
+      },
+      {
+        "h3Index": "844380dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 14
+      },
+      {
+        "h3Index": "8442a5bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 2
+      },
+      {
+        "h3Index": "84534abffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 2
+      },
+      {
+        "h3Index": "8443845ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 8
+      },
+      {
+        "h3Index": "8443847ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 9
+      },
+      {
+        "h3Index": "8443809ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 11
+      },
+      {
+        "h3Index": "84534a9ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 7
+      },
+      {
+        "h3Index": "844384dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 8
+      },
+      {
+        "h3Index": "8443841ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 10
+      },
+      {
+        "h3Index": "844380bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 10
+      },
+      {
+        "h3Index": "844381dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 11
+      },
+      {
+        "h3Index": "8443a25ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 5
+      },
+      {
+        "h3Index": "8443a27ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 4
+      },
+      {
+        "h3Index": "8443843ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 2
+      },
+      {
+        "h3Index": "8443813ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 6
+      },
+      {
+        "h3Index": "8443853ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 19
+      },
+      {
+        "h3Index": "844385bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 13
+      },
+      {
+        "h3Index": "84438ddffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 4
+      },
+      {
+        "h3Index": "84438d1ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 9
+      },
+      {
+        "h3Index": "8443abdffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 30
+      },
+      {
+        "h3Index": "8443a4dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8443ae9ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 11
+      },
+      {
+        "h3Index": "8443a87ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 34
+      },
+      {
+        "h3Index": "8443a19ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 22
+      },
+      {
+        "h3Index": "8443a13ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 30
+      },
+      {
+        "h3Index": "8443ac5ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 60
+      },
+      {
+        "h3Index": "8443ac7ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 45
+      },
+      {
+        "h3Index": "8443a51ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 24
+      },
+      {
+        "h3Index": "8443a1bffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 52
+      },
+      {
+        "h3Index": "8443acdffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 58
+      },
+      {
+        "h3Index": "8443a53ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 19
+      },
+      {
+        "h3Index": "8443125ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 27
+      },
+      {
+        "h3Index": "8443ac1ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 26
+      },
+      {
+        "h3Index": "8443a5bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 20
+      },
+      {
+        "h3Index": "8443127ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 37
+      },
+      {
+        "h3Index": "8443165ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 11
+      },
+      {
+        "h3Index": "844312dffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 21
+      },
+      {
+        "h3Index": "8443167ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 12
+      },
+      {
+        "h3Index": "845368bffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 11
+      },
+      {
+        "h3Index": "844316dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 9
+      },
+      {
+        "h3Index": "84536ebffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 40
+      },
+      {
+        "h3Index": "84536d5ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 23
+      },
+      {
+        "h3Index": "84536e9ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 39
+      }
+    ],
+    "event_1028": [
+      {
+        "h3Index": "8420707ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8420739ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "842073bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8420717ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "842142dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8410813ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "841081bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8410aa5ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "842149dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "840bb55ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 6
+      },
+      {
+        "h3Index": "8410a95ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8410a91ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8410d59ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8410c27ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 2
+      },
+      {
+        "h3Index": "8410f33ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8410f01ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8410f39ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8410c21ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8410f47ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8410f03ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8410f3bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8410f41ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "8410cadffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 1
+      },
+      {
+        "h3Index": "840ba53ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      }
+    ],
+    "event_1179": [
+      {
+        "h3Index": "843daedffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 8
+      },
+      {
+        "h3Index": "843da1bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 4
+      },
+      {
+        "h3Index": "843d125ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "843d12dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "843d129ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 2
+      },
+      {
+        "h3Index": "843d163ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "843d16bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      },
+      {
+        "h3Index": "8442493ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 2
+      },
+      {
+        "h3Index": "843d145ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 4
+      },
+      {
+        "h3Index": "843d14dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 0
+      },
+      {
+        "h3Index": "843d325ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 1
+      },
+      {
+        "h3Index": "843d32dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 3
+      }
+    ],
+    "event_1394": [
+      {
+        "h3Index": "8443857ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 15
+      },
+      {
+        "h3Index": "8443ae3ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 12
+      },
+      {
+        "h3Index": "8443abdffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 30
+      },
+      {
+        "h3Index": "8443a85ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 33
+      },
+      {
+        "h3Index": "8443a87ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 34
+      },
+      {
+        "h3Index": "8443acdffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 58
+      },
+      {
+        "h3Index": "8443ac1ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 26
+      },
+      {
+        "h3Index": "8443165ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 11
+      },
+      {
+        "h3Index": "844312dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 21
+      },
+      {
+        "h3Index": "8443121ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 7
+      },
+      {
+        "h3Index": "8443167ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 12
+      },
+      {
+        "h3Index": "845368bffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 11
+      },
+      {
+        "h3Index": "844316dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 9
+      },
+      {
+        "h3Index": "8453689ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 30
+      },
+      {
+        "h3Index": "84536c7ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 32
+      }
+    ],
+    "event_1395": [
+      {
+        "h3Index": "8443a37ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 14
+      },
+      {
+        "h3Index": "8443aa5ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 4
+      },
+      {
+        "h3Index": "8443aadffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 4
+      },
+      {
+        "h3Index": "8443aa1ffffffff",
+        "spoofedFlightCount": 2,
+        "seenAircraftCount": 9
+      },
+      {
+        "h3Index": "8443ae7ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 8
+      },
+      {
+        "h3Index": "8443ae3ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 12
+      },
+      {
+        "h3Index": "8443ae9ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 11
+      },
+      {
+        "h3Index": "8443a85ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 33
+      },
+      {
+        "h3Index": "8443a8dffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 46
+      },
+      {
+        "h3Index": "8443ac5ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 60
+      },
+      {
+        "h3Index": "8443a81ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 30
+      },
+      {
+        "h3Index": "8453611ffffffff",
+        "spoofedFlightCount": 1,
+        "seenAircraftCount": 28
+      }
+    ]
+  }
+}

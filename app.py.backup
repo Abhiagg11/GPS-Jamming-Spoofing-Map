@@ -19,7 +19,7 @@ st.set_page_config(
     page_title="GNSS Interference Investigator",
     page_icon="🛰️",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
 # ---------------------------------------------------------
@@ -29,73 +29,143 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-        .stApp { background-color: #0b111b; }
+        .stApp {
+            background-color: #0b111b;
+        }
+
+        /* Hide Streamlit's small page-decoration strip above the header. */
+        div[data-testid="stDecoration"] {
+            display: none !important;
+        div[data-testid="stStatusWidget"] {
+    display: none !important;
+        }
         .block-container {
             max-width: 100%;
-            padding: 0.75rem 0.75rem 0.25rem 0.75rem !important;
+            padding: 0.35rem 0.55rem 0.1rem 0.55rem !important;
         }
+
+        /* Let Streamlit manage the sidebar width when it opens/closes. */
+        section[data-testid="stSidebar"] {
+            min-width: 0;
+        }
+
+        /* When collapsed, remove the sidebar from the horizontal layout. */
+        section[data-testid="stSidebar"][aria-expanded="false"] {
+            width: 0 !important;
+            min-width: 0 !important;
+            max-width: 0 !important;
+            flex: 0 0 0 !important;
+            overflow: hidden !important;
+        }
+
+        /* Allow the main application area to consume the released space. */
+        [data-testid="stAppViewContainer"] > .main {
+            min-width: 0 !important;
+            width: 100% !important;
+            flex: 1 1 0% !important;
+        }
+
+        [data-testid="stAppViewBlockContainer"] {
+            max-width: 100% !important;
+            width: 100% !important;
+            margin-left: 0 !important;
+        }
+
+        [data-testid="stSidebarContent"] {
+            padding: 0.65rem 0.8rem 0.8rem 0.8rem;
+        }
+
+        [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+            gap: 0.35rem;
+        }
+
+        [data-testid="stSidebar"] .stCaption {
+            font-size: 0.72rem;
+        }
+
+        [data-testid="stSidebar"] div[data-testid="stForm"] {
+            padding: 0.55rem;
+        }
+
         .main-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             border-bottom: 1px solid #26384c;
-            padding-bottom: 10px;
-            margin-bottom: 12px;
+            padding-bottom: 5px;
+            margin-bottom: 5px;
         }
+
         .main-header h1 {
             color: #f1f5f9;
-            font-size: 21px;
+            font-size: 19px;
             margin: 0;
         }
+
         .subtitle {
             color: #91a4b9;
             font-size: 12px;
-            margin-top: 3px;
+            margin-top: 1px;
         }
+
         .sidebar-heading {
             color: #f1f5f9;
             font-size: 18px;
             font-weight: 700;
             margin-bottom: 3px;
         }
+
         .sidebar-hint {
             color: #91a4b9;
             font-size: 12px;
             margin-bottom: 15px;
         }
+
         .map-caption {
             color: #91a4b9;
             font-size: 11px;
-            padding-top: 5px;
+            padding-top: 2px;
         }
+
         div[data-testid="stForm"] {
             background: #172333;
             border: 1px solid #26384c;
             border-radius: 9px;
             padding: 12px;
         }
+
         div[data-testid="stTextInput"] input,
         div[data-testid="stDateInput"] input {
             min-height: 2.4rem;
         }
+
         div[data-testid="stVerticalBlock"] > div {
             gap: 0.38rem;
         }
+
         .map-frame {
             background: #111c2a;
             border: 1px solid #26384c;
             border-radius: 10px;
             padding: 8px;
         }
+
         div[data-testid="stAlert"] {
             padding: 0.65rem 0.9rem;
         }
-        hr { border-color: #26384c; }
-        footer { visibility: hidden; }
+
+        hr {
+            border-color: #26384c;
+        }
+
+        footer {
+            visibility: hidden;
+        }
     </style>
     """,
     unsafe_allow_html=True,
 )
+
 
 # ---------------------------------------------------------
 # CACHED ADS-B PROVIDER CALLS
@@ -118,7 +188,6 @@ def cached_flight_track(flight_id):
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def cached_stanford_data():
-    # Load every Stanford date currently present in downloaded_json_files.
     return load_stanford_data("0001-01-01", "9999-12-31")
 
 
@@ -138,12 +207,149 @@ if "search_error" not in st.session_state:
 if "selected_flight_id" not in st.session_state:
     st.session_state.selected_flight_id = None
 
+if "airport_search_results" not in st.session_state:
+    st.session_state.airport_search_results = []
+
+if "selected_airport" not in st.session_state:
+    st.session_state.selected_airport = None
+
+if "airport_search_error" not in st.session_state:
+    st.session_state.airport_search_error = None
+
+# ---------------------------------------------------------
+# SIDEBAR — AIRPORT SEARCH
+# ---------------------------------------------------------
+
+with st.sidebar.expander("✈️ Airport Search", expanded=True):
+
+    st.markdown("**Find an Airport**")
+    st.caption("Search worldwide using an IATA or ICAO airport code.")
+
+    with st.form("airport_lookup_form"):
+
+        airport_code = st.text_input(
+            "Airport Code",
+            placeholder="DEL or VIDP",
+            max_chars=4,
+        )
+
+        airport_submit = st.form_submit_button(
+            "Search Airport",
+            use_container_width=True,
+            type="primary",
+        )
+
+    if airport_submit:
+
+        code = airport_code.strip().upper()
+
+        st.session_state.airport_search_results = []
+        st.session_state.selected_airport = None
+        st.session_state.airport_search_error = None
+
+        if not code:
+            st.session_state.airport_search_error = (
+                "Enter an IATA or ICAO airport code."
+            )
+
+        else:
+            try:
+                results = search_airport(code)
+
+                if results.empty:
+                    st.session_state.airport_search_error = (
+                        f"No airport found for '{code}'."
+                    )
+                else:
+                    st.session_state.airport_search_results = (
+                        results.to_dict("records")
+                    )
+
+            except Exception as exc:
+                st.session_state.airport_search_error = (
+                    f"Airport search failed: {exc}"
+                )
+
+    if st.session_state.airport_search_error:
+        st.error(st.session_state.airport_search_error)
+
+    airport_results = st.session_state.airport_search_results
+
+    if airport_results:
+
+        airport_options = {}
+
+        for airport in airport_results:
+
+            iata = airport.get("iata_code") or "N/A"
+            icao = airport.get("icao_code") or "N/A"
+            name = airport.get("name") or "Unknown Airport"
+            city = airport.get("municipality") or ""
+
+            label = f"{name} ({iata} / {icao}) — {city}"
+            airport_options[label] = airport
+
+        selected_airport_label = st.selectbox(
+            "Select Airport",
+            list(airport_options.keys()),
+            key="airport_result_selection",
+        )
+
+        airport = airport_options[selected_airport_label]
+
+        if st.button(
+            "📍 Focus Map on Airport",
+            use_container_width=True,
+            type="primary",
+            key="focus_selected_airport",
+        ):
+
+            st.session_state.selected_airport = {
+                "name": airport.get("name"),
+                "iata": airport.get("iata_code"),
+                "icao": airport.get("icao_code"),
+                "city": airport.get("municipality"),
+                "country": airport.get("iso_country"),
+                "latitude": float(airport.get("latitude_deg")),
+                "longitude": float(airport.get("longitude_deg")),
+                "type": airport.get("type"),
+            }
+
+            st.session_state.investigation_map_center = [
+                float(airport["latitude_deg"]),
+                float(airport["longitude_deg"]),
+            ]
+
+            st.session_state.investigation_map_zoom = 10
+
+            st.session_state.investigation_map_search_name = (
+                airport.get("name") or "Selected Airport"
+            )
+
+        selected = st.session_state.selected_airport
+
+        if selected:
+
+            st.divider()
+            st.markdown("**Airport Details**")
+
+            st.write(f"**Name:** {selected['name']}")
+            st.write(f"**IATA:** {selected['iata'] or 'N/A'}")
+            st.write(f"**ICAO:** {selected['icao'] or 'N/A'}")
+            st.write(f"**City:** {selected['city'] or 'N/A'}")
+            st.write(f"**Country:** {selected['country'] or 'N/A'}")
+            st.write(f"**Type:** {selected['type'] or 'N/A'}")
+
+            st.caption(
+                f"Coordinates: {selected['latitude']:.5f}, "
+                f"{selected['longitude']:.5f}"
+            )
 
 # ---------------------------------------------------------
 # SIDEBAR — FLIGHT SEARCH
 # ---------------------------------------------------------
 
-with st.expander("✈️ Flight Investigation — Search", expanded=False):
+with st.sidebar.expander("✈️ Flight Search", expanded=False):
 
     st.markdown(
         '<div class="sidebar-heading">🔎 Flight Search</div>',
@@ -366,16 +572,17 @@ st.markdown(
 
 # ---------------------------------------------------------
 # FLIGHT SEARCH RESULTS — COLLAPSIBLE
+# ---------------------------------------------------------
 
-with st.expander("✈️ Flight Results", expanded=bool(st.session_state.flight_search)):
-    search = st.session_state.flight_search
+search = st.session_state.flight_search
 
-    selected_flight = None
-    track = pd.DataFrame()
-    gaps = pd.DataFrame()
-    flight_metadata = None
+selected_flight = None
+track = pd.DataFrame()
+gaps = pd.DataFrame()
+flight_metadata = None
 
-    if search:
+if search:
+    with st.sidebar.expander("✈️ Flight Results", expanded=True):
 
         flights = search.get("flights", [])
 
@@ -477,16 +684,14 @@ with st.expander("✈️ Flight Results", expanded=bool(st.session_state.flight_
                     )
 
 
-    # ---------------------------------------------------------
-
-
+# ---------------------------------------------------------
 # LOAD GNSS REPORTS
 # ---------------------------------------------------------
 
 gnss_reports, gnss_report_errors = load_gnss_reports()
 
 if gnss_report_errors:
-    with st.expander("GNSS report import warnings", expanded=False):
+    with st.sidebar.expander("GNSS report warnings", expanded=False):
         for report_error in gnss_report_errors:
             st.warning(report_error)
 
@@ -498,13 +703,27 @@ if gnss_report_errors:
 try:
     stanford_data = cached_stanford_data()
 except Exception as exc:
-    stanford_data = {"events": [], "jamming_cells": [], "spoofing_cells": []}
-    st.warning(f"Stanford GPS Lab data could not be loaded: {exc}")
+    stanford_data = {
+        "events": [],
+        "jamming_cells": [],
+        "spoofing_cells": [],
+    }
+    st.sidebar.warning(
+        f"Stanford GPS Lab data could not be loaded: {exc}"
+    )
 
-with st.expander("Stanford GPS Lab data status", expanded=False):
+with st.sidebar.expander("Stanford GPS Lab data", expanded=False):
+
     st.write(f"Event locations: {len(stanford_data['events']):,}")
-    st.write(f"Jamming H3 observations: {len(stanford_data['jamming_cells']):,}")
-    st.write(f"Spoofing H3 observations: {len(stanford_data['spoofing_cells']):,}")
+    st.write(
+        f"Jamming H3 observations: "
+        f"{len(stanford_data['jamming_cells']):,}"
+    )
+    st.write(
+        f"Spoofing H3 observations: "
+        f"{len(stanford_data['spoofing_cells']):,}"
+    )
+
     st.caption(
         "Source: Stanford GPS Lab (rfi.stanford.edu). Data licensed CC BY-NC 4.0. "
         "Jamming cells represent aircraft navigation-quality observations, "
@@ -514,9 +733,11 @@ with st.expander("Stanford GPS Lab data status", expanded=False):
 
 
 # ---------------------------------------------------------
-# GLOBAL GNSS HEATMAP FILTERS — COLLAPSIBLE
+# GLOBAL GNSS HEATMAP FILTERS
+# ---------------------------------------------------------
 
-with st.expander("⚙️ Map Filters", expanded=False):
+with st.sidebar.expander("⚙️ Map Filters", expanded=False):
+
     st.markdown("### Global GNSS Interference Map")
 
     st.caption(
@@ -524,60 +745,51 @@ with st.expander("⚙️ Map Filters", expanded=False):
         "not measured RF interference strength."
     )
 
-    filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(
-        [1.2, 1.1, 1.5, 1.0],
-        gap="small",
+    selected_report_date = st.date_input(
+        "Report date (UTC)",
+        value=pd.Timestamp.now(tz="UTC").date(),
+        key="heatmap_report_date",
     )
 
-    with filter_col1:
-        selected_report_date = st.date_input(
-            "Report date (UTC)",
-            value=pd.Timestamp.now(tz="UTC").date(),
-            key="heatmap_report_date",
-        )
+    selected_window = st.selectbox(
+        "Time window",
+        ["6 hours", "24 hours"],
+        index=1,
+        key="heatmap_time_window",
+    )
 
-    with filter_col2:
-        selected_window = st.selectbox(
-            "Time window",
-            ["6 hours", "24 hours"],
-            index=1,
-            key="heatmap_time_window",
-        )
+    event_type_options = [
+        "jamming",
+        "spoofing",
+        "interference",
+        "unknown",
+    ]
 
-    with filter_col3:
-        event_type_options = [
-            "jamming",
-            "spoofing",
-            "interference",
-            "unknown",
-        ]
+    selected_event_types = st.multiselect(
+        "Event types",
+        event_type_options,
+        default=event_type_options,
+        key="heatmap_event_types",
+    )
 
-        selected_event_types = st.multiselect(
-            "Event types",
-            event_type_options,
-            default=event_type_options,
-            key="heatmap_event_types",
-        )
+    resolution_options = {
+        "3 — broad global view": 3,
+        "4 — regional view": 4,
+        "5 — local detail": 5,
+        "6 — high detail": 6,
+    }
 
-    with filter_col4:
-        resolution_options = {
-            "3 — broad global view": 3,
-            "4 — regional view": 4,
-            "5 — local detail": 5,
-            "6 — high detail": 6,
-        }
-        selected_resolution_label = st.selectbox(
-            "H3 resolution",
-            list(resolution_options.keys()),
-            index=2,
-            key="heatmap_h3_resolution",
-        )
-        selected_resolution = resolution_options[selected_resolution_label]
+    selected_resolution_label = st.selectbox(
+        "H3 resolution",
+        list(resolution_options.keys()),
+        index=2,
+        key="heatmap_h3_resolution",
+    )
+
+    selected_resolution = resolution_options[selected_resolution_label]
 
 
-    # ---------------------------------------------------------
-
-
+# ---------------------------------------------------------
 # FILTER REPORT DATA
 # ---------------------------------------------------------
 
@@ -587,7 +799,6 @@ now_utc = pd.Timestamp.now(tz="UTC")
 selected_day_start = pd.Timestamp(selected_report_date, tz="UTC")
 selected_day_end = selected_day_start + pd.Timedelta(days=1)
 
-# For today's date, do not include future reports.
 if selected_report_date == now_utc.date():
     window_end = min(selected_day_end, now_utc)
 else:
@@ -639,7 +850,7 @@ except (ValueError, TypeError) as exc:
 
 if heatmap_cells:
 
-    st.caption(
+    st.sidebar.caption(
         f"{len(real_reports)} real report(s) · "
         f"{len(heatmap_cells)} populated cell(s) · "
         f"{window_start:%Y-%m-%d %H:%M} to "
@@ -648,7 +859,7 @@ if heatmap_cells:
 
 else:
 
-    st.info(
+    st.sidebar.info(
         "No real GNSS reports match these filters. Empty areas indicate "
         "no available report data, not confirmed absence of interference."
     )
@@ -659,7 +870,6 @@ else:
 # ---------------------------------------------------------
 
 st.markdown("### Global GNSS Interference Map")
-st.caption("Global view is the default. Open Map Filters or Flight Investigation only when needed.")
 
 map_lat, map_lon = 15.0, 0.0
 map_result = None
@@ -682,6 +892,13 @@ try:
             p["longitude"] for p in estimated_route_points
         ) / 2
 
+        # Centre the map on the selected airport when one is chosen.
+    selected_airport = st.session_state.get("selected_airport")
+
+    if selected_airport:
+        map_lat = selected_airport["latitude"]
+        map_lon = selected_airport["longitude"]
+
     map_result = render_investigation_map(
         map_lat,
         map_lon,
@@ -701,7 +918,6 @@ except Exception as exc:
 
 
 # ---------------------------------------------------------
-
 # GEOJSON DOWNLOAD
 # ---------------------------------------------------------
 
@@ -724,7 +940,7 @@ if isinstance(map_result, dict) and map_result.get("geometry"):
 
 if not track.empty:
 
-    with st.expander(
+    with st.sidebar.expander(
         "Flight data and detected gaps",
         expanded=False,
     ):

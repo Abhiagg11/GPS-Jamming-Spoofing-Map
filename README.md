@@ -4,7 +4,6 @@ A personal learning/MVP project for investigating reported ADS-B position gaps a
 
 ## MVP features
 
-- Upload a Mission Watch screenshot.
 - Attempt OCR extraction of visible flight identifiers and DMS coordinates (Tesseract required).
 - Review extracted values and manually correct the map centre.
 - Draw/edit a marker, circle, rectangle or polygon around the suspected position-loss area.

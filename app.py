@@ -6,6 +6,7 @@ from modules.map_view import render_investigation_map
 from modules.gnss_reports import load_gnss_reports
 from modules.heatmap import build_hex_cells
 from modules.stanford_data import load_stanford_data
+from modules.stanford_refresh import refresh_stanford_data, read_status
 from modules.airport_lookup import search_airport
 from modules.adsb_provider import (
     search_by_route,
@@ -685,21 +686,25 @@ if search:
 
 
 # ---------------------------------------------------------
-# LOAD GNSS REPORTS
-# ---------------------------------------------------------
-
-gnss_reports, gnss_report_errors = load_gnss_reports()
-
-if gnss_report_errors:
-    with st.sidebar.expander("GNSS report warnings", expanded=False):
-        for report_error in gnss_report_errors:
-            st.warning(report_error)
-
-
-# ---------------------------------------------------------
 # LOAD STANFORD GPS LAB DATA
 # ---------------------------------------------------------
 
+# Automatically check for new or revised data once per UTC day.
+try:
+    refresh_result = refresh_stanford_data()
+
+    if not refresh_result.get("skipped") and refresh_result.get("updated", 0) > 0:
+        cached_stanford_data.clear()
+
+except Exception as exc:
+    refresh_result = {
+        "errors": [str(exc)],
+        "updated": 0,
+        "unchanged": 0,
+        "not_published": 0,
+    }
+
+# Load the latest locally stored Stanford data.
 try:
     stanford_data = cached_stanford_data()
 except Exception as exc:
@@ -715,14 +720,39 @@ except Exception as exc:
 with st.sidebar.expander("Stanford GPS Lab data", expanded=False):
 
     st.write(f"Event locations: {len(stanford_data['events']):,}")
+    st.write(f"Jamming H3 observations: {len(stanford_data['jamming_cells']):,}")
+    st.write(f"Spoofing H3 observations: {len(stanford_data['spoofing_cells']):,}")
+
+    status = read_status()
+    last_success = status.get("last_success_utc")
+
+    if last_success:
+        st.caption(f"Last successful refresh (UTC): {last_success}")
+    else:
+        st.caption("No successful refresh recorded yet.")
+
     st.write(
-        f"Jamming H3 observations: "
-        f"{len(stanford_data['jamming_cells']):,}"
+        f"Files updated: {refresh_result.get('updated', 0)} · "
+        f"Unchanged: {refresh_result.get('unchanged', 0)} · "
+        f"Not published: {refresh_result.get('not_published', 0)}"
     )
-    st.write(
-        f"Spoofing H3 observations: "
-        f"{len(stanford_data['spoofing_cells']):,}"
-    )
+
+    if refresh_result.get("errors"):
+        st.warning(
+            f"{len(refresh_result['errors'])} file(s) could not be refreshed. "
+            "Existing local files have been preserved."
+        )
+
+    if st.button("Refresh Stanford Data Now", use_container_width=True):
+        try:
+            with st.spinner("Checking Stanford GPS Lab for updated data..."):
+                manual_result = refresh_stanford_data(force=True)
+
+            cached_stanford_data.clear()
+            st.rerun()
+
+        except Exception as exc:
+            st.error(f"Manual refresh failed: {exc}")
 
     st.caption(
         "Source: Stanford GPS Lab (rfi.stanford.edu). Data licensed CC BY-NC 4.0. "
@@ -790,46 +820,27 @@ with st.sidebar.expander("⚙️ Map Filters", expanded=False):
 
 
 # ---------------------------------------------------------
-# FILTER REPORT DATA
+# LOAD GNSS REPORT DATA
 # ---------------------------------------------------------
 
-window_hours = 6 if selected_window == "6 hours" else 24
+try:
+    gnss_reports = load_gnss_reports()
 
-now_utc = pd.Timestamp.now(tz="UTC")
-selected_day_start = pd.Timestamp(selected_report_date, tz="UTC")
-selected_day_end = selected_day_start + pd.Timedelta(days=1)
+    if not gnss_reports.empty:
+        is_synthetic = gnss_reports["source"].astype(str).str.contains(
+            "synthetic|demo",
+            case=False,
+            na=False,
+        )
 
-if selected_report_date == now_utc.date():
-    window_end = min(selected_day_end, now_utc)
-else:
-    window_end = selected_day_end
+        gnss_reports = gnss_reports[~is_synthetic].copy()
 
-window_start = max(
-    selected_day_start,
-    window_end - pd.Timedelta(hours=window_hours),
-)
+except Exception as exc:
+    st.sidebar.warning(f"GNSS report data could not be loaded: {exc}")
+
+    gnss_reports = pd.DataFrame()
 
 real_reports = gnss_reports.copy()
-
-if not real_reports.empty:
-
-    is_synthetic = real_reports["source"].astype(str).str.contains(
-        "synthetic|demo",
-        case=False,
-        na=False,
-    )
-
-    real_reports = real_reports[~is_synthetic]
-
-    real_reports = real_reports[
-        real_reports["timestamp"].ge(window_start)
-        & real_reports["timestamp"].lt(window_end)
-        & real_reports["event_type"]
-            .astype(str)
-            .str.lower()
-            .isin(selected_event_types)
-    ]
-
 
 # ---------------------------------------------------------
 # BUILD HEATMAP CELLS
