@@ -3,6 +3,7 @@ import streamlit as st
 import folium
 import pandas as pd
 from html import escape
+from heapq import nlargest
 
 from branca.element import Element
 from folium.plugins import Draw, Fullscreen, MousePosition
@@ -945,21 +946,27 @@ def render_investigation_map(
 
     # Jamming heatmap cells describe low navigation-quality observations.
     # Render only non-zero cells and cap the displayed set for browser performance.
-    active_jamming = [
-        cell for cell in stanford_jamming_cells
-        if int(cell.get("low_quality_count", 0) or 0) > 0
-        and int(cell.get("total_aircraft_count", 0) or 0) > 0
-    ]
-    active_jamming.sort(
-        key=lambda cell: (
-            int(cell.get("low_quality_count", 0) or 0)
-            / max(int(cell.get("total_aircraft_count", 0) or 0), 1),
-            int(cell.get("low_quality_count", 0) or 0),
-        ),
-        reverse=True,
-    )
+    # Select the strongest 2,500 cells without sorting the entire dataset.
     jamming_display_limit = 2500
-    displayed_jamming = active_jamming[:jamming_display_limit]
+
+    def jamming_rank(cell):
+        low = int(cell.get("low_quality_count", 0) or 0)
+        total = int(cell.get("total_aircraft_count", 0) or 0)
+
+        return (
+            low / max(total, 1),
+            low,
+        )
+
+    displayed_jamming = nlargest(
+        jamming_display_limit,
+        (
+            cell for cell in stanford_jamming_cells
+            if int(cell.get("low_quality_count", 0) or 0) > 0
+            and int(cell.get("total_aircraft_count", 0) or 0) > 0
+        ),
+        key=jamming_rank,
+    )
 
     if displayed_jamming:
         stanford_jamming_layer = folium.FeatureGroup(

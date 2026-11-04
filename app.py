@@ -957,6 +957,9 @@ try:
         map_lat = selected_airport["latitude"]
         map_lon = selected_airport["longitude"]
 
+    import time
+    map_start = time.perf_counter()
+
     map_result = render_investigation_map(
         map_lat,
         map_lon,
@@ -967,6 +970,10 @@ try:
         heatmap_cells=heatmap_cells,
         stanford_data=stanford_data,
     )
+
+    map_elapsed = time.perf_counter() - map_start
+
+    st.caption(f"Map generation time: {map_elapsed:.2f} seconds")
 
 except Exception as exc:
 
