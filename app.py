@@ -728,6 +728,47 @@ with st.sidebar.expander("Stanford GPS Lab data", expanded=False):
     st.write(f"Event locations: {len(stanford_data['events']):,}")
     st.write(f"Jamming H3 observations: {len(stanford_data['jamming_cells']):,}")
     st.write(f"Spoofing H3 observations: {len(stanford_data['spoofing_cells']):,}")
+    
+        # Rolling 7-day Stanford data coverage
+    from datetime import datetime, timedelta, timezone
+
+    today_utc = datetime.now(timezone.utc).date()
+    requested_dates = {
+        (today_utc - timedelta(days=offset)).isoformat()
+        for offset in range(7)
+    }
+
+    available_dates = sorted({
+        item["date"]
+        for key in ("events", "jamming_cells", "spoofing_cells")
+        for item in stanford_data[key]
+    })
+
+    missing_dates = sorted(requested_dates - set(available_dates))
+
+    st.markdown("### Data Coverage")
+
+    st.caption(
+        f"Requested window: "
+        f"{(today_utc - timedelta(days=6)).strftime('%d %b %Y')} "
+        f"to {today_utc.strftime('%d %b %Y')} (UTC)"
+    )
+
+    if available_dates:
+        st.success(
+            f"Data available: {available_dates[0]} to {available_dates[-1]}"
+        )
+    else:
+        st.warning("No Stanford data available in the requested window.")
+
+    if missing_dates:
+        formatted_missing = ", ".join(
+            datetime.strptime(date, "%Y-%m-%d").strftime("%d %b")
+            for date in missing_dates
+        )
+        st.warning(f"No data available for: {formatted_missing}")
+    else:
+        st.success("Data available for all seven dates.")
 
     status = read_status()
     last_success = status.get("last_success_utc")
