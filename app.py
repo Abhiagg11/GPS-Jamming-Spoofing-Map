@@ -188,8 +188,8 @@ def cached_flight_track(flight_id):
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def cached_stanford_data():
-    return load_stanford_data("0001-01-01", "9999-12-31")
+def cached_stanford_data(start_date, end_date):
+    return load_stanford_data(start_date, end_date)
 
 
 # ---------------------------------------------------------
@@ -706,7 +706,13 @@ except Exception as exc:
 
 # Load the latest locally stored Stanford data.
 try:
-    stanford_data = cached_stanford_data()
+    from datetime import datetime, timedelta, timezone
+
+    today_utc = datetime.now(timezone.utc).date()
+    start_date = (today_utc - timedelta(days=6)).isoformat()
+    end_date = today_utc.isoformat()
+
+    stanford_data = cached_stanford_data(start_date, end_date)
 except Exception as exc:
     stanford_data = {
         "events": [],
