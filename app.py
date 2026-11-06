@@ -1,1058 +1,208 @@
-import json
 import streamlit as st
 import pandas as pd
+import folium
+import requests
+from io import BytesIO
+from streamlit_folium import st_folium
 
-from modules.map_view import render_investigation_map
-from modules.gnss_reports import load_gnss_reports
-from modules.heatmap import build_hex_cells
-from modules.stanford_data import load_stanford_data
-from modules.stanford_refresh import refresh_stanford_data, read_status
-from modules.airport_lookup import search_airport
-from modules.adsb_provider import (
-    search_by_route,
-    search_by_callsign,
-    get_flight_track,
-    detect_position_gaps,
-    ADSBProviderError,
-)
+# --------------------------------------------------
+# PAGE CONFIGURATION
+# --------------------------------------------------
 
 st.set_page_config(
     page_title="GNSS Interference Investigator",
     page_icon="🛰️",
-    layout="wide",
-    initial_sidebar_state="expanded",
+    layout="wide"
 )
 
-# ---------------------------------------------------------
-# CUSTOM STYLING
-# ---------------------------------------------------------
+st.title("🛰️ GNSS Interference Investigator")
+st.caption("Historical Flight Search | Route Visualization | GNSS Investigation")
 
-st.markdown(
-    """
-    <style>
-        .stApp {
-            background-color: #0b111b;
-        }
+# --------------------------------------------------
+# LOAD AIRPORT DATABASE
+# --------------------------------------------------
 
-        /* Hide Streamlit's small page-decoration strip above the header. */
-        div[data-testid="stDecoration"] {
-            display: none !important;
-        div[data-testid="stStatusWidget"] {
-    display: none !important;
-        }
-        .block-container {
-            max-width: 100%;
-            padding: 0.35rem 0.55rem 0.1rem 0.55rem !important;
-        }
-
-        /* Let Streamlit manage the sidebar width when it opens/closes. */
-        section[data-testid="stSidebar"] {
-            min-width: 0;
-        }
-
-        /* When collapsed, remove the sidebar from the horizontal layout. */
-        section[data-testid="stSidebar"][aria-expanded="false"] {
-            width: 0 !important;
-            min-width: 0 !important;
-            max-width: 0 !important;
-            flex: 0 0 0 !important;
-            overflow: hidden !important;
-        }
-
-        /* Allow the main application area to consume the released space. */
-        [data-testid="stAppViewContainer"] > .main {
-            min-width: 0 !important;
-            width: 100% !important;
-            flex: 1 1 0% !important;
-        }
-
-        [data-testid="stAppViewBlockContainer"] {
-            max-width: 100% !important;
-            width: 100% !important;
-            margin-left: 0 !important;
-        }
-
-        [data-testid="stSidebarContent"] {
-            padding: 0.65rem 0.8rem 0.8rem 0.8rem;
-        }
-
-        [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-            gap: 0.35rem;
-        }
-
-        [data-testid="stSidebar"] .stCaption {
-            font-size: 0.72rem;
-        }
-
-        [data-testid="stSidebar"] div[data-testid="stForm"] {
-            padding: 0.55rem;
-        }
-
-        .main-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 1px solid #26384c;
-            padding-bottom: 5px;
-            margin-bottom: 5px;
-        }
-
-        .main-header h1 {
-            color: #f1f5f9;
-            font-size: 19px;
-            margin: 0;
-        }
-
-        .subtitle {
-            color: #91a4b9;
-            font-size: 12px;
-            margin-top: 1px;
-        }
-
-        .sidebar-heading {
-            color: #f1f5f9;
-            font-size: 18px;
-            font-weight: 700;
-            margin-bottom: 3px;
-        }
-
-        .sidebar-hint {
-            color: #91a4b9;
-            font-size: 12px;
-            margin-bottom: 15px;
-        }
-
-        .map-caption {
-            color: #91a4b9;
-            font-size: 11px;
-            padding-top: 2px;
-        }
-
-        div[data-testid="stForm"] {
-            background: #172333;
-            border: 1px solid #26384c;
-            border-radius: 9px;
-            padding: 12px;
-        }
-
-        div[data-testid="stTextInput"] input,
-        div[data-testid="stDateInput"] input {
-            min-height: 2.4rem;
-        }
-
-        div[data-testid="stVerticalBlock"] > div {
-            gap: 0.38rem;
-        }
-
-        .map-frame {
-            background: #111c2a;
-            border: 1px solid #26384c;
-            border-radius: 10px;
-            padding: 8px;
-        }
-
-        div[data-testid="stAlert"] {
-            padding: 0.65rem 0.9rem;
-        }
-
-        hr {
-            border-color: #26384c;
-        }
-
-        footer {
-            visibility: hidden;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True,
+AIRPORT_DATA_URL = (
+    "https://raw.githubusercontent.com/"
+    "davidmegginson/ourairports-data/main/airports.csv"
 )
 
 
-# ---------------------------------------------------------
-# CACHED ADS-B PROVIDER CALLS
-# ---------------------------------------------------------
-
-@st.cache_data(ttl=900, show_spinner=False)
-def cached_route_search(departure, destination, flight_date):
-    return search_by_route(departure, destination, flight_date)
-
-
-@st.cache_data(ttl=900, show_spinner=False)
-def cached_callsign_search(callsign, flight_date):
-    return search_by_callsign(callsign, flight_date)
-
-
-@st.cache_data(ttl=900, show_spinner=False)
-def cached_flight_track(flight_id):
-    return get_flight_track(flight_id)
-
-
-@st.cache_data(ttl=3600, show_spinner=False)
-def cached_stanford_data(start_date, end_date):
-    return load_stanford_data(start_date, end_date)
-
-
-# ---------------------------------------------------------
-# SESSION STATE
-# ---------------------------------------------------------
-
-if "flight_search" not in st.session_state:
-    st.session_state.flight_search = None
-
-if "search_message" not in st.session_state:
-    st.session_state.search_message = None
-
-if "search_error" not in st.session_state:
-    st.session_state.search_error = None
-
-if "selected_flight_id" not in st.session_state:
-    st.session_state.selected_flight_id = None
-
-if "airport_search_results" not in st.session_state:
-    st.session_state.airport_search_results = []
-
-if "selected_airport" not in st.session_state:
-    st.session_state.selected_airport = None
-
-if "airport_search_error" not in st.session_state:
-    st.session_state.airport_search_error = None
-
-# ---------------------------------------------------------
-# SIDEBAR — AIRPORT SEARCH
-# ---------------------------------------------------------
-
-with st.sidebar.expander("✈️ Airport Search", expanded=True):
-
-    st.markdown("**Find an Airport**")
-    st.caption("Search worldwide using an IATA or ICAO airport code.")
-
-    with st.form("airport_lookup_form"):
-
-        airport_code = st.text_input(
-            "Airport Code",
-            placeholder="DEL or VIDP",
-            max_chars=4,
-        )
-
-        airport_submit = st.form_submit_button(
-            "Search Airport",
-            use_container_width=True,
-            type="primary",
-        )
-
-    if airport_submit:
-
-        code = airport_code.strip().upper()
-
-        st.session_state.airport_search_results = []
-        st.session_state.selected_airport = None
-        st.session_state.airport_search_error = None
-
-        if not code:
-            st.session_state.airport_search_error = (
-                "Enter an IATA or ICAO airport code."
-            )
-
-        else:
-            try:
-                results = search_airport(code)
-
-                if results.empty:
-                    st.session_state.airport_search_error = (
-                        f"No airport found for '{code}'."
-                    )
-                else:
-                    st.session_state.airport_search_results = (
-                        results.to_dict("records")
-                    )
-
-            except Exception as exc:
-                st.session_state.airport_search_error = (
-                    f"Airport search failed: {exc}"
-                )
-
-    if st.session_state.airport_search_error:
-        st.error(st.session_state.airport_search_error)
-
-    airport_results = st.session_state.airport_search_results
-
-    if airport_results:
-
-        airport_options = {}
-
-        for airport in airport_results:
-
-            iata = airport.get("iata_code") or "N/A"
-            icao = airport.get("icao_code") or "N/A"
-            name = airport.get("name") or "Unknown Airport"
-            city = airport.get("municipality") or ""
-
-            label = f"{name} ({iata} / {icao}) — {city}"
-            airport_options[label] = airport
-
-        selected_airport_label = st.selectbox(
-            "Select Airport",
-            list(airport_options.keys()),
-            key="airport_result_selection",
-        )
-
-        airport = airport_options[selected_airport_label]
-
-        if st.button(
-            "📍 Focus Map on Airport",
-            use_container_width=True,
-            type="primary",
-            key="focus_selected_airport",
-        ):
-
-            st.session_state.selected_airport = {
-                "name": airport.get("name"),
-                "iata": airport.get("iata_code"),
-                "icao": airport.get("icao_code"),
-                "city": airport.get("municipality"),
-                "country": airport.get("iso_country"),
-                "latitude": float(airport.get("latitude_deg")),
-                "longitude": float(airport.get("longitude_deg")),
-                "type": airport.get("type"),
-            }
-
-            st.session_state.investigation_map_center = [
-                float(airport["latitude_deg"]),
-                float(airport["longitude_deg"]),
-            ]
-
-            st.session_state.investigation_map_zoom = 10
-
-            st.session_state.investigation_map_search_name = (
-                airport.get("name") or "Selected Airport"
-            )
-
-        selected = st.session_state.selected_airport
-
-        if selected:
-
-            st.divider()
-            st.markdown("**Airport Details**")
-
-            st.write(f"**Name:** {selected['name']}")
-            st.write(f"**IATA:** {selected['iata'] or 'N/A'}")
-            st.write(f"**ICAO:** {selected['icao'] or 'N/A'}")
-            st.write(f"**City:** {selected['city'] or 'N/A'}")
-            st.write(f"**Country:** {selected['country'] or 'N/A'}")
-            st.write(f"**Type:** {selected['type'] or 'N/A'}")
-
-            st.caption(
-                f"Coordinates: {selected['latitude']:.5f}, "
-                f"{selected['longitude']:.5f}"
-            )
-
-# ---------------------------------------------------------
-# SIDEBAR — FLIGHT SEARCH
-# ---------------------------------------------------------
-
-with st.sidebar.expander("✈️ Flight Search", expanded=False):
-
-    st.markdown(
-        '<div class="sidebar-heading">🔎 Flight Search</div>',
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        '<div class="sidebar-hint">'
-        'Find a historical flight to investigate (latest 7 calendar days).'
-        '</div>',
-        unsafe_allow_html=True,
-    )
-
-    search_method = st.radio(
-        "Search method",
-        ["By Route", "By Flight Number"],
-        key="search_method",
-    )
-
-    st.divider()
-
-    if search_method == "By Route":
-
-        with st.form("route_search_form"):
-
-            st.markdown("**Airport Details**")
-
-            departure = st.text_input(
-                "Departure Airport",
-                placeholder="DEL",
-                max_chars=4,
-            )
-
-            destination = st.text_input(
-                "Destination Airport",
-                placeholder="LHR",
-                max_chars=4,
-            )
-
-            route_date = st.date_input(
-                "Flight Date",
-                key="route_flight_date",
-            )
-
-            route_submit = st.form_submit_button(
-                "Search Flights",
-                use_container_width=True,
-                type="primary",
-            )
-
-        if route_submit:
-
-            dep = departure.strip().upper()
-            dest = destination.strip().upper()
-
-            st.session_state.search_error = None
-            st.session_state.search_message = None
-            st.session_state.flight_search = None
-            st.session_state.selected_flight_id = None
-
-            if not dep or not dest:
-                st.session_state.search_error = (
-                    "Enter both departure and destination airport codes."
-                )
-
-            elif dep == dest:
-                st.session_state.search_error = (
-                    "Departure and destination cannot be the same."
-                )
-
-            elif search_airport(dep).empty:
-                st.session_state.search_error = (
-                    f"Departure airport '{dep}' was not found."
-                )
-
-            elif search_airport(dest).empty:
-                st.session_state.search_error = (
-                    f"Destination airport '{dest}' was not found."
-                )
-
-            else:
-                try:
-                    with st.spinner("Searching historical ADS-B records..."):
-
-                        flights = cached_route_search(
-                            dep,
-                            dest,
-                            route_date.isoformat(),
-                        )
-
-                    dep_airport = search_airport(dep).iloc[0]
-                    dest_airport = search_airport(dest).iloc[0]
-
-                    estimated_route_points = [
-                        {
-                            "name": f"{dep} — {dep_airport['name']}",
-                            "latitude": float(dep_airport["latitude_deg"]),
-                            "longitude": float(dep_airport["longitude_deg"]),
-                        },
-                        {
-                            "name": f"{dest} — {dest_airport['name']}",
-                            "latitude": float(dest_airport["latitude_deg"]),
-                            "longitude": float(dest_airport["longitude_deg"]),
-                        },
-                    ]
-
-                    st.session_state.flight_search = {
-                        "search_type": "route",
-                        "departure": dep,
-                        "destination": dest,
-                        "date": route_date.isoformat(),
-                        "flights": flights,
-                        "estimated_route_points": estimated_route_points,
-                    }
-
-                    st.session_state.search_message = (
-                        f"{dep} → {dest} | {route_date.isoformat()} | "
-                        f"{len(flights)} matching record(s)"
-                    )
-
-                except (ADSBProviderError, ValueError) as exc:
-                    st.session_state.search_error = str(exc)
-
-                except Exception as exc:
-                    st.session_state.search_error = (
-                        f"Flight search failed: {exc}"
-                    )
-
-    else:
-
-        with st.form("flight_number_search_form"):
-
-            st.markdown("**Flight Details**")
-
-            flight_number = st.text_input(
-                "Flight Number / Callsign",
-                placeholder="BAW395",
-            )
-
-            flight_date = st.date_input(
-                "Flight Date",
-                key="flight_number_date",
-            )
-
-            flight_submit = st.form_submit_button(
-                "Search Flight",
-                use_container_width=True,
-                type="primary",
-            )
-
-        if flight_submit:
-
-            callsign = flight_number.strip().upper()
-
-            st.session_state.search_error = None
-            st.session_state.search_message = None
-            st.session_state.flight_search = None
-            st.session_state.selected_flight_id = None
-
-            if not callsign:
-                st.session_state.search_error = (
-                    "Enter a flight number or callsign."
-                )
-
-            else:
-                try:
-                    with st.spinner("Searching historical ADS-B records..."):
-
-                        flights = cached_callsign_search(
-                            callsign,
-                            flight_date.isoformat(),
-                        )
-
-                    st.session_state.flight_search = {
-                        "search_type": "flight_number",
-                        "flight_number": callsign,
-                        "date": flight_date.isoformat(),
-                        "flights": flights,
-                    }
-
-                    st.session_state.search_message = (
-                        f"{callsign} | {flight_date.isoformat()} | "
-                        f"{len(flights)} matching record(s)"
-                    )
-
-                except (ADSBProviderError, ValueError) as exc:
-                    st.session_state.search_error = str(exc)
-
-                except Exception as exc:
-                    st.session_state.search_error = (
-                        f"Flight search failed: {exc}"
-                    )
-
-    if st.session_state.search_error:
-        st.error(st.session_state.search_error)
-
-    if st.session_state.search_message:
-        st.success(st.session_state.search_message)
-
-
-# ---------------------------------------------------------
-# MAIN HEADER
-# ---------------------------------------------------------
-
-st.markdown(
-    """
-    <div class="main-header">
-        <div>
-            <h1>🛰️ GNSS Interference Investigator</h1>
-            <div class="subtitle">
-                Global GNSS reports · Historical flight routes ·
-                ADS-B position gaps · Potential GNSS interference
-            </div>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-
-# ---------------------------------------------------------
-# FLIGHT SEARCH RESULTS — COLLAPSIBLE
-# ---------------------------------------------------------
-
-search = st.session_state.flight_search
-
-selected_flight = None
-track = pd.DataFrame()
-gaps = pd.DataFrame()
-flight_metadata = None
-
-if search:
-    with st.sidebar.expander("✈️ Flight Results", expanded=True):
-
-        flights = search.get("flights", [])
-
-        if not flights:
-
-            st.warning(
-                "No matching ADS-B records were returned. The map will show "
-                "an estimated airport-to-airport connection, not an actual flight path."
-            )
-
-        else:
-
-            def flight_label(flight):
-
-                callsign = flight.get("callsign") or "Unknown callsign"
-                origin = flight.get("start_airport_ident") or "Unknown origin"
-                destination = flight.get("end_airport_ident") or "Unknown destination"
-                start = flight.get("start_ts") or "Time unavailable"
-
-                return (
-                    f"{callsign} | {origin} → {destination} | {start}"
-                )
-
-            options = {
-                flight.get("flight_id"): flight
-                for flight in flights
-                if flight.get("flight_id")
-            }
-
-            if options:
-
-                labels = {
-                    flight_label(flight): fid
-                    for fid, flight in options.items()
-                }
-
-                label_list = list(labels.keys())
-
-                current_id = st.session_state.selected_flight_id
-                default_index = 0
-
-                if current_id in options:
-
-                    for idx, label in enumerate(label_list):
-
-                        if labels[label] == current_id:
-                            default_index = idx
-                            break
-
-                selected_label = st.selectbox(
-                    "Select the matching historical flight",
-                    label_list,
-                    index=default_index,
-                    key=(
-                        f"flight_choice_{search['date']}_"
-                        f"{search.get('flight_number', search.get('departure', 'route'))}"
-                    ),
-                )
-
-                selected_id = labels[selected_label]
-
-                st.session_state.selected_flight_id = selected_id
-                selected_flight = options[selected_id]
-
-                try:
-
-                    with st.spinner("Retrieving historical aircraft positions..."):
-
-                        flight_metadata, track = cached_flight_track(
-                            selected_id
-                        )
-
-                    gaps = detect_position_gaps(
-                        track,
-                        threshold_seconds=60,
-                    )
-
-                except Exception as exc:
-
-                    st.error(
-                        f"Could not retrieve this flight track: {exc}"
-                    )
-
-                    track = pd.DataFrame()
-                    gaps = pd.DataFrame()
-
-                if not track.empty:
-
-                    st.caption(
-                        f"{len(track)} ADS-B positions · "
-                        f"{len(gaps)} observation gaps (>60 sec) · "
-                        "Gaps do not confirm GNSS interference."
-                    )
-
-                else:
-
-                    st.warning(
-                        "The selected flight record has no usable historical track points."
-                    )
-
-
-# ---------------------------------------------------------
-# LOAD STANFORD GPS LAB DATA
-# ---------------------------------------------------------
-
-# Automatically check for new or revised data once per UTC day.
-try:
-    refresh_result = refresh_stanford_data()
-
-    if not refresh_result.get("skipped") and refresh_result.get("updated", 0) > 0:
-        cached_stanford_data.clear()
-
-except Exception as exc:
-    refresh_result = {
-        "errors": [str(exc)],
-        "updated": 0,
-        "unchanged": 0,
-        "not_published": 0,
-    }
-
-# Load the latest locally stored Stanford data.
-try:
-    from datetime import datetime, timedelta, timezone
-
-    today_utc = datetime.now(timezone.utc).date()
-    start_date = (today_utc - timedelta(days=6)).isoformat()
-    end_date = today_utc.isoformat()
-
-    stanford_data = cached_stanford_data(start_date, end_date)
-except Exception as exc:
-    stanford_data = {
-        "events": [],
-        "jamming_cells": [],
-        "spoofing_cells": [],
-    }
-    st.sidebar.warning(
-        f"Stanford GPS Lab data could not be loaded: {exc}"
-    )
-
-with st.sidebar.expander("Stanford GPS Lab data", expanded=False):
-
-    st.write(f"Event locations: {len(stanford_data['events']):,}")
-    st.write(f"Jamming H3 observations: {len(stanford_data['jamming_cells']):,}")
-    st.write(f"Spoofing H3 observations: {len(stanford_data['spoofing_cells']):,}")
-    
-        # Rolling 7-day Stanford data coverage
-    from datetime import datetime, timedelta, timezone
-
-    today_utc = datetime.now(timezone.utc).date()
-    requested_dates = {
-        (today_utc - timedelta(days=offset)).isoformat()
-        for offset in range(7)
-    }
-
-    available_dates = sorted({
-        item["date"]
-        for key in ("events", "jamming_cells", "spoofing_cells")
-        for item in stanford_data[key]
-    })
-
-    missing_dates = sorted(requested_dates - set(available_dates))
-
-    st.markdown("### Data Coverage")
-
-    st.caption(
-        f"Requested window: "
-        f"{(today_utc - timedelta(days=6)).strftime('%d %b %Y')} "
-        f"to {today_utc.strftime('%d %b %Y')} (UTC)"
-    )
-
-    if available_dates:
-        st.success(
-            f"Data available: {available_dates[0]} to {available_dates[-1]}"
-        )
-    else:
-        st.warning("No Stanford data available in the requested window.")
-
-    if missing_dates:
-        formatted_missing = ", ".join(
-            datetime.strptime(date, "%Y-%m-%d").strftime("%d %b")
-            for date in missing_dates
-        )
-        st.warning(f"No data available for: {formatted_missing}")
-    else:
-        st.success("Data available for all seven dates.")
-
-    status = read_status()
-    last_success = status.get("last_success_utc")
-
-    if last_success:
-        st.caption(f"Last successful refresh (UTC): {last_success}")
-    else:
-        st.caption("No successful refresh recorded yet.")
-
-    st.write(
-        f"Files updated: {refresh_result.get('updated', 0)} · "
-        f"Unchanged: {refresh_result.get('unchanged', 0)} · "
-        f"Not published: {refresh_result.get('not_published', 0)}"
-    )
-
-    if refresh_result.get("errors"):
-        st.warning(
-            f"{len(refresh_result['errors'])} file(s) could not be refreshed. "
-            "Existing local files have been preserved."
-        )
-
-    if st.button("Refresh Stanford Data Now", use_container_width=True):
-        try:
-            with st.spinner("Checking Stanford GPS Lab for updated data..."):
-                manual_result = refresh_stanford_data(force=True)
-
-            cached_stanford_data.clear()
-            st.rerun()
-
-        except Exception as exc:
-            st.error(f"Manual refresh failed: {exc}")
-
-    st.caption(
-        "Source: Stanford GPS Lab (rfi.stanford.edu). Data licensed CC BY-NC 4.0. "
-        "Jamming cells represent aircraft navigation-quality observations, "
-        "not measured RF strength or confirmed interference coverage. "
-        "Spoofing cells are grouped by Stanford event ID."
-    )
-
-
-# ---------------------------------------------------------
-# GLOBAL GNSS HEATMAP FILTERS
-# ---------------------------------------------------------
-
-with st.sidebar.expander("⚙️ Map Filters", expanded=False):
-
-    st.markdown("### Global GNSS Interference Map")
-
-    st.caption(
-        "Hexagon colour represents the number of reports in each cell — "
-        "not measured RF interference strength."
-    )
-
-    selected_report_date = st.date_input(
-        "Report date (UTC)",
-        value=pd.Timestamp.now(tz="UTC").date(),
-        key="heatmap_report_date",
-    )
-
-    selected_window = st.selectbox(
-        "Time window",
-        ["6 hours", "24 hours"],
-        index=1,
-        key="heatmap_time_window",
-    )
-
-    event_type_options = [
-        "jamming",
-        "spoofing",
-        "interference",
-        "unknown",
+@st.cache_data(ttl=86400)
+def load_airports():
+    response = requests.get(AIRPORT_DATA_URL, timeout=30)
+    response.raise_for_status()
+
+    airports = pd.read_csv(BytesIO(response.content))
+
+    airports = airports[
+        airports["type"].isin(["large_airport", "medium_airport"])
+        & airports["iata_code"].notna()
     ]
 
-    selected_event_types = st.multiselect(
-        "Event types",
-        event_type_options,
-        default=event_type_options,
-        key="heatmap_event_types",
-    )
-
-    resolution_options = {
-        "3 — broad global view": 3,
-        "4 — regional view": 4,
-        "5 — local detail": 5,
-        "6 — high detail": 6,
-    }
-
-    selected_resolution_label = st.selectbox(
-        "H3 resolution",
-        list(resolution_options.keys()),
-        index=2,
-        key="heatmap_h3_resolution",
-    )
-
-    selected_resolution = resolution_options[selected_resolution_label]
+    return airports
 
 
-# ---------------------------------------------------------
-# LOAD GNSS REPORT DATA
-# ---------------------------------------------------------
+def find_airport(code, airports):
+    code = code.strip().upper()
+
+    if not code:
+        return None
+
+    result = airports[
+        (airports["iata_code"].str.upper() == code)
+        | (airports["ident"].str.upper() == code)
+    ]
+
+    if result.empty:
+        return None
+
+    return result.iloc[0]
+
+
+# --------------------------------------------------
+# AIRPORT SEARCH
+# --------------------------------------------------
+
+st.subheader("Flight Route Search")
 
 try:
-    gnss_reports = load_gnss_reports()
+    airports = load_airports()
 
-    if not gnss_reports.empty:
-        is_synthetic = gnss_reports["source"].astype(str).str.contains(
-            "synthetic|demo",
-            case=False,
-            na=False,
+    col1, col2 = st.columns(2)
+
+    with col1:
+        departure = st.text_input(
+            "Departure Airport",
+            placeholder="Enter IATA / ICAO code (e.g. DEL)"
         )
 
-        gnss_reports = gnss_reports[~is_synthetic].copy()
-
-except Exception as exc:
-    st.sidebar.warning(f"GNSS report data could not be loaded: {exc}")
-
-    gnss_reports = pd.DataFrame()
-
-real_reports = gnss_reports.copy()
-
-# ---------------------------------------------------------
-# BUILD HEATMAP CELLS
-# ---------------------------------------------------------
-
-try:
-
-    heatmap_cells = build_hex_cells(
-        real_reports,
-        resolution=selected_resolution,
-    )
-
-except (ValueError, TypeError) as exc:
-
-    heatmap_cells = []
-    st.error(f"Could not build GNSS heatmap cells: {exc}")
-
-
-if heatmap_cells:
-
-    st.sidebar.caption(
-        f"{len(real_reports)} real report(s) · "
-        f"{len(heatmap_cells)} populated cell(s) · "
-        f"{window_start:%Y-%m-%d %H:%M} to "
-        f"{window_end:%Y-%m-%d %H:%M} UTC"
-    )
-
-else:
-
-    st.sidebar.info(
-        "No real GNSS reports match these filters. Empty areas indicate "
-        "no available report data, not confirmed absence of interference."
-    )
-
-
-# ---------------------------------------------------------
-# INVESTIGATION MAP
-# ---------------------------------------------------------
-
-st.markdown("### Global GNSS Interference Map")
-
-map_lat, map_lon = 15.0, 0.0
-map_result = None
-
-try:
-
-    estimated_route_points = (
-        search.get("estimated_route_points", [])
-        if search and search.get("search_type") == "route"
-        else []
-    )
-
-    if estimated_route_points and track.empty:
-
-        map_lat = sum(
-            p["latitude"] for p in estimated_route_points
-        ) / 2
-
-        map_lon = sum(
-            p["longitude"] for p in estimated_route_points
-        ) / 2
-
-        # Centre the map on the selected airport when one is chosen.
-    selected_airport = st.session_state.get("selected_airport")
-
-    if selected_airport:
-        map_lat = selected_airport["latitude"]
-        map_lon = selected_airport["longitude"]
-
-    import time
-    map_start = time.perf_counter()
-
-    map_result = render_investigation_map(
-        map_lat,
-        map_lon,
-        flight_route_points=estimated_route_points,
-        flight_track=track,
-        position_gaps=gaps,
-        gnss_reports=gnss_reports,
-        heatmap_cells=heatmap_cells,
-        stanford_data=stanford_data,
-    )
-
-    map_elapsed = time.perf_counter() - map_start
-
-    st.caption(f"Map generation time: {map_elapsed:.2f} seconds")
-
-except Exception as exc:
-
-    st.error(
-        f"The investigation map could not be loaded: {exc}"
-    )
-
-
-# ---------------------------------------------------------
-# GEOJSON DOWNLOAD
-# ---------------------------------------------------------
-
-if isinstance(map_result, dict) and map_result.get("geometry"):
-
-    st.download_button(
-        label="⬇ Download Investigation Area (GeoJSON)",
-        data=json.dumps(
-            map_result["geometry"],
-            indent=2,
-        ),
-        file_name="investigation-area.geojson",
-        mime="application/geo+json",
-    )
-
-
-# ---------------------------------------------------------
-# COLLAPSED FLIGHT DETAILS
-# ---------------------------------------------------------
-
-if not track.empty:
-
-    with st.sidebar.expander(
-        "Flight data and detected gaps",
-        expanded=False,
-    ):
-
-        col1, col2, col3 = st.columns(3)
-
-        col1.metric("ADS-B positions", len(track))
-        col2.metric("Gaps over 60 sec", len(gaps))
-
-        col3.metric(
-            "Callsign",
-            str(
-                (flight_metadata or {}).get("callsign") or "Unknown"
-            ),
+    with col2:
+        destination = st.text_input(
+            "Destination Airport",
+            placeholder="Enter IATA / ICAO code (e.g. LHR)"
         )
 
-        if gaps.empty:
+    if st.button("Show Route", type="primary"):
+        dep_airport = find_airport(departure, airports)
+        dest_airport = find_airport(destination, airports)
 
-            st.write(
-                "No gaps above 60 seconds were detected."
-            )
+        if not departure or not destination:
+            st.error("Please enter both airport codes.")
+
+        elif dep_airport is None:
+            st.error(f"Departure airport '{departure}' not found.")
+
+        elif dest_airport is None:
+            st.error(f"Destination airport '{destination}' not found.")
+
+        elif dep_airport["ident"] == dest_airport["ident"]:
+            st.error("Departure and destination cannot be the same.")
 
         else:
+            st.session_state["route"] = {
+                "departure": dep_airport.to_dict(),
+                "destination": dest_airport.to_dict()
+            }
 
-            display_gaps = gaps.copy()
+    # --------------------------------------------------
+    # WORLD MAP
+    # --------------------------------------------------
 
-            for col in ["previous_timestamp", "timestamp"]:
-                display_gaps[col] = display_gaps[col].astype(str)
+    st.subheader("Flight Route Map")
 
-            st.dataframe(
-                display_gaps,
-                use_container_width=True,
-                hide_index=True,
-            )
+    route = st.session_state.get("route")
 
+    if route:
+        dep = route["departure"]
+        dest = route["destination"]
 
-# ---------------------------------------------------------
-# FOOTER
-# ---------------------------------------------------------
+        center_lat = (
+            dep["latitude_deg"] + dest["latitude_deg"]
+        ) / 2
 
-st.markdown(
-    """
-    <div class="map-caption">
-        Data source: ADS-B historical provider. Track geometry represents
-        received ADS-B positions; lines are not interpolated across detected
-        observation gaps. ADS-B gaps are not proof of GNSS interference.
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+        center_lon = (
+            dep["longitude_deg"] + dest["longitude_deg"]
+        ) / 2
+
+        zoom = 3
+
+    else:
+        center_lat = 20
+        center_lon = 0
+        zoom = 2
+
+    flight_map = folium.Map(
+    location=[center_lat, center_lon],
+    zoom_start=zoom,
+    tiles=None
+    )
+
+    folium.TileLayer(
+    tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+    attr="Esri",
+    name="Esri World Street Map",
+    overlay=False,
+    control=True
+    )  .add_to(flight_map)
+
+    if route:
+        dep = route["departure"]
+        dest = route["destination"]
+
+        dep_coords = [
+            dep["latitude_deg"],
+            dep["longitude_deg"]
+        ]
+
+        dest_coords = [
+            dest["latitude_deg"],
+            dest["longitude_deg"]
+        ]
+
+        folium.Marker(
+            dep_coords,
+            tooltip=f"Departure: {dep['name']}",
+            popup=f"{dep['iata_code']} - {dep['name']}",
+            icon=folium.Icon(color="green", icon="plane")
+        ).add_to(flight_map)
+
+        folium.Marker(
+            dest_coords,
+            tooltip=f"Destination: {dest['name']}",
+            popup=f"{dest['iata_code']} - {dest['name']}",
+            icon=folium.Icon(color="red", icon="plane")
+        ).add_to(flight_map)
+
+        folium.PolyLine(
+            [dep_coords, dest_coords],
+            color="#00BFFF",
+            weight=3,
+            opacity=0.9,
+            tooltip="Estimated airport-to-airport connection"
+        ).add_to(flight_map)
+
+        flight_map.fit_bounds([dep_coords, dest_coords])
+
+        st.success(
+            f"Route: {dep['iata_code']} → {dest['iata_code']}"
+        )
+
+        st.caption(
+            "This is an estimated airport-to-airport connection, "
+            "not an actual historical aircraft track."
+        )
+
+    map_data = st_folium(
+        flight_map,
+        width=None,
+        height=700,
+        returned_objects=[],
+        key="gnss_world_map"
+    )
+
+except requests.RequestException as exc:
+    st.error(f"Unable to download airport database: {exc}")
+
+except Exception as exc:
+    st.error(f"Application error: {exc}")
